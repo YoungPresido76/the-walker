@@ -1,7 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { WALL_HEIGHT, WORLD } from "./constants";
+import { FLASHLIGHT_FLICKER_THRESHOLD, WALL_HEIGHT, WORLD } from "./constants";
 import type { Instance, Maze } from "./maze";
 import type { Runtime } from "./runtime";
 
@@ -195,7 +195,8 @@ function Flashlight({ runtime }: { runtime: Runtime }) {
     const fill = fillRef.current;
     const beam = beamRef.current;
     if (!light || !fill || !beam) return;
-    const active = runtime.mode === "underground" && runtime.flashlightOn;
+    const lowBatteryFlicker = runtime.battery <= FLASHLIGHT_FLICKER_THRESHOLD && Math.sin(runtime.elapsed * 31) > -0.15;
+    const active = runtime.mode === "underground" && runtime.flashlightOn && (runtime.battery > FLASHLIGHT_FLICKER_THRESHOLD || lowBatteryFlicker);
     light.intensity = active ? 22 + Math.sin(runtime.elapsed * 17) * 0.7 : 0;
     fill.intensity = active ? 8 : 0;
     beam.visible = active;

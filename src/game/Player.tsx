@@ -7,7 +7,9 @@ import {
   ACCEL,
   EYE_HEIGHT,
   FRICTION,
-  FLASHLIGHT_DRAIN,
+  FLASHLIGHT_FLICKER_THRESHOLD,
+  FLASHLIGHT_MAIN_DRAIN,
+  FLASHLIGHT_RESERVE_DRAIN,
   GAMEPAD_LOOK,
   HINT_COOLDOWN,
   HINT_DURATION,
@@ -118,12 +120,13 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
 
       runtime.elapsed += STEP;
       if (runtime.mode === "underground" && runtime.flashlightOn) {
-        runtime.battery = Math.max(0, runtime.battery - FLASHLIGHT_DRAIN * STEP);
+        const drain = runtime.battery > 5 ? FLASHLIGHT_MAIN_DRAIN : FLASHLIGHT_RESERVE_DRAIN;
+        runtime.battery = Math.max(0, runtime.battery - drain * STEP);
         if (runtime.battery <= 0) {
           runtime.flashlightOn = false;
           useHud.setState({ flashlightOn: false, battery: 0 });
           stalkerWhisper();
-        } else if (Math.floor(runtime.battery) !== Math.floor(runtime.battery + FLASHLIGHT_DRAIN * STEP)) {
+        } else if (Math.floor(runtime.battery) !== Math.floor(runtime.battery + drain * STEP)) {
           useHud.setState({ battery: runtime.battery });
         }
       }
@@ -254,6 +257,10 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
         if (runtime.collected.has(c.id)) continue;
         if (Math.hypot(runtime.x - c.x, runtime.z - c.z) < 0.72) {
           runtime.collected.add(c.id);
+          if (runtime.mode === "underground") {
+            runtime.battery = Math.min(100, runtime.battery + 3);
+            useHud.setState({ battery: runtime.battery });
+          }
           chime();
           useHud.setState({ collected: runtime.collected.size });
         }
