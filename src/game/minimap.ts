@@ -36,15 +36,20 @@ export function drawMinimap(rt: Runtime) {
   ctx.fillRect(0, 0, w, w);
 
   ctx.translate(r, r);
-  ctx.rotate(-rt.yaw);
+  const expanded = rt.mapExpanded;
+  if (!expanded) ctx.rotate(-rt.yaw);
 
-  const scale = 5.6;
+  const scale = expanded
+    ? Math.min((w - 18) / (maze.width * CELL_SIZE), (w - 18) / (maze.height * CELL_SIZE))
+    : 5.6;
+  const mapCenterX = ((maze.width - 1) * CELL_SIZE) / 2;
+  const mapCenterZ = ((maze.height - 1) * CELL_SIZE) / 2;
   const worldToMap = (x: number, z: number) => ({
-    x: (x - rt.x) * scale,
-    y: (z - rt.z) * scale,
+    x: (x - (expanded ? mapCenterX : rt.x)) * scale,
+    y: (z - (expanded ? mapCenterZ : rt.z)) * scale,
   });
 
-  const visR = r + 8;
+  const visR = expanded ? Infinity : r + 8;
   for (let y = 0; y < maze.height; y++) {
     for (let x = 0; x < maze.width; x++) {
       if (!rt.visited[y * maze.width + x]) continue;
@@ -77,7 +82,8 @@ export function drawMinimap(rt: Runtime) {
 
   for (const orb of maze.collectibles) {
     if (rt.collected.has(orb.id)) continue;
-    if (!rt.visited[orb.cellY * maze.width + orb.cellX]) continue;
+    const nearby = Math.hypot(orb.x - rt.x, orb.z - rt.z) < CELL_SIZE * 2.2;
+    if (!rt.visited[orb.cellY * maze.width + orb.cellX] && !nearby) continue;
     const p = worldToMap(orb.x, orb.z);
     ctx.fillStyle = ORB;
     ctx.beginPath();
@@ -85,7 +91,7 @@ export function drawMinimap(rt: Runtime) {
     ctx.fill();
   }
 
-  if (rt.hintT > 0 && rt.hintTarget) {
+  if (!expanded && rt.hintT > 0 && rt.hintTarget) {
     const p = worldToMap(rt.hintTarget.x, rt.hintTarget.z);
     const ang = Math.atan2(p.y, p.x);
     const d = Math.min(32, Math.hypot(p.x, p.y));
@@ -112,7 +118,7 @@ export function drawMinimap(rt: Runtime) {
     ctx.globalAlpha = 1;
   }
 
-  ctx.rotate(rt.yaw);
+  if (!expanded) ctx.rotate(rt.yaw);
   ctx.fillStyle = SELF;
   ctx.beginPath();
   ctx.moveTo(0, -7);

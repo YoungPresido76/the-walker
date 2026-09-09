@@ -194,7 +194,7 @@ function HintArrow({ runtime }: { runtime: Runtime }) {
   });
   return (
     <group ref={ref} visible={false}>
-      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.28]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0.28]}>
         <coneGeometry args={[0.16, 0.42, 5]} />
         <meshBasicMaterial ref={mat} color={WORLD.orb} transparent opacity={0.85} depthWrite={false} />
       </mesh>
@@ -237,12 +237,12 @@ export function World({ maze, runtime }: { maze: Maze; runtime: Runtime }) {
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[cx, 0, cz]} receiveShadow>
         <planeGeometry args={[160, 160]} />
-        <meshStandardMaterial map={grass} roughness={0.95} metalness={0} />
+      <meshStandardMaterial map={grass} roughness={0.98} metalness={0} flatShading />
       </mesh>
 
       <ColoredInstances items={maze.paths} receiveShadow roughness={0.96} />
-      <ColoredInstances items={maze.walls} castShadow={!cheap} receiveShadow roughness={0.88} />
-      <ColoredInstances items={maze.caps} castShadow={!cheap} roughness={0.82} />
+      <ColoredInstances items={maze.walls} castShadow={!cheap} receiveShadow roughness={0.9} flatShading />
+      <ColoredInstances items={maze.caps} castShadow={!cheap} roughness={0.84} flatShading />
       <ColoredInstances items={maze.clumps} shape="ico" roughness={0.84} flatShading />
 
       <Trees maze={maze} />

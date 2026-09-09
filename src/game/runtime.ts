@@ -28,6 +28,7 @@ export type Runtime = {
   hintEl: HTMLElement | null;
   collectEl: HTMLElement | null;
   mapEl: HTMLCanvasElement | null;
+  mapExpanded: boolean;
 };
 
 export function createRuntime(maze: Maze, input: GameInput): Runtime {
@@ -64,6 +65,7 @@ export function createRuntime(maze: Maze, input: GameInput): Runtime {
     hintEl: null,
     collectEl: null,
     mapEl: null,
+    mapExpanded: false,
   };
 }
 

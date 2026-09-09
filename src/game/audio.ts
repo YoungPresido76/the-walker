@@ -16,9 +16,9 @@ function ac(): AudioContext | null {
     master = ctx.createGain();
     sfx = ctx.createGain();
     musicBus = ctx.createGain();
-    master.gain.value = 0.72;
-    sfx.gain.value = 0.82;
-    musicBus.gain.value = 0.16;
+    master.gain.value = 1.0;
+    sfx.gain.value = 1.08;
+    musicBus.gain.value = 0.27;
     sfx.connect(master);
     musicBus.connect(master);
     master.connect(ctx.destination);
@@ -163,7 +163,7 @@ export function footstep(strength = 1) {
   bp.type = "bandpass";
   bp.frequency.value = 180 + Math.random() * 90;
   bp.Q.value = 0.7;
-  const g = envGain(c, t, 0.008, 0.11, 0.22 * strength);
+  const g = envGain(c, t, 0.008, 0.11, 0.32 * strength);
   src.connect(bp);
   bp.connect(g);
   src.start(t);
@@ -185,7 +185,7 @@ export function rustle() {
   const f = c.createBiquadFilter();
   f.type = "highpass";
   f.frequency.value = 900;
-  const g = envGain(c, t, 0.004, 0.08, 0.12);
+  const g = envGain(c, t, 0.004, 0.08, 0.2);
   src.connect(f);
   f.connect(g);
   src.start(t);

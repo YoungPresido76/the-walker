@@ -1,5 +1,5 @@
 import { Compass, Flower2, RotateCcw } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TOUCH_LOOK_SENS } from "./constants";
 import type { GameInput } from "./input";
 import type { Runtime } from "./runtime";
@@ -207,6 +207,7 @@ export function Hud({
   const collected = useHud((s) => s.collected);
   const total = useHud((s) => s.total);
   const touch = useHud((s) => s.touch);
+  const [mapExpanded, setMapExpanded] = useState(false);
   const mapRef = useRef<HTMLCanvasElement>(null);
   const timeRef = useRef<HTMLSpanElement>(null);
   const hintRef = useRef<HTMLSpanElement>(null);
@@ -225,15 +226,25 @@ export function Hud({
     };
   }, [runtime]);
 
+  useEffect(() => {
+    runtime.mapExpanded = mapExpanded;
+  }, [mapExpanded, runtime]);
+
   const playing = phase === "playing";
 
   return (
     <>
       <div className="pointer-events-none absolute inset-0 z-20 p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
-          <div className="minimap-disk size-[120px] overflow-hidden rounded-full bg-bg/80 sm:size-[148px]">
+          <button
+            type="button"
+            aria-label="Toggle full explored map"
+            onClick={() => setMapExpanded((open) => !open)}
+            className={`pointer-events-auto minimap-disk overflow-hidden bg-bg/85 ${mapExpanded ? "fixed inset-4 z-40 size-auto rounded-2xl border border-border shadow-2xl sm:inset-10" : "size-[120px] rounded-full sm:size-[148px]"}`}
+          >
             <canvas ref={mapRef} className="size-full" />
-          </div>
+            <span className="sr-only">Tap to {mapExpanded ? "close" : "open"} full map</span>
+          </button>
           <div className="flex flex-col items-end gap-2">
             <div className="rounded-md border border-border bg-surface/80 px-3 py-2">
               <p className="text-[10px] tracking-wide text-faint uppercase">Time</p>

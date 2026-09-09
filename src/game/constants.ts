@@ -1,14 +1,14 @@
 export const CELL_SIZE = 4;
 export const WALL_THICK = 0.56;
-export const WALL_HEIGHT = 4.55;
+export const WALL_HEIGHT = 3.05;
 export const PLAYER_RADIUS = 0.34;
 export const EYE_HEIGHT = 1.62;
 export const WALK_SPEED = 3.25;
 export const SPRINT_SPEED = 4.35;
 export const ACCEL = 14;
 export const FRICTION = 9.5;
-export const MAZE_W = 11;
-export const MAZE_H = 11;
+export const MAZE_W = 17;
+export const MAZE_H = 13;
 export const STEP = 1 / 60;
 export const HINT_DURATION = 2.2;
 export const HINT_COOLDOWN = 8;
