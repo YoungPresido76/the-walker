@@ -1,1 +1,0 @@
-{"root":["./src/main.tsx","./src/game/Player.tsx","./src/game/TheWalker.tsx","./src/game/World.tsx","./src/game/audio.ts","./src/game/collision.ts","./src/game/constants.ts","./src/game/input.ts","./src/game/maze.ts","./src/game/minimap.ts","./src/game/overlays.tsx","./src/game/rng.ts","./src/game/runtime.ts","./src/game/store.ts","./vite.config.ts"],"version":"5.9.3"}
