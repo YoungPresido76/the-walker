@@ -102,6 +102,14 @@ export function drawMinimap(rt: Runtime) {
     ctx.fill();
   }
 
+  for (let i = 0; i < maze.landmarks.length; i++) {
+    if (!rt.landmarkSeen.has(i)) continue;
+    const landmark = maze.landmarks[i]!;
+    const p = worldToMap(landmark.x, landmark.z);
+    ctx.fillStyle = landmark.kind === "river" ? "#76aebc" : landmark.kind === "mountain" ? "#9ba9ad" : "#d7b67c";
+    ctx.fillRect(p.x - 3, p.y - 3, 6, 6);
+  }
+
   if (rt.hintT > 0 && rt.hintTarget) {
     const p = worldToMap(rt.hintTarget.x, rt.hintTarget.z);
     const ang = Math.atan2(p.y, p.x);

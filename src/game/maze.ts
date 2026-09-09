@@ -10,6 +10,8 @@ import { createRng, mixColor, type Rng } from "./rng";
 export type Dir = "n" | "e" | "s" | "w";
 export type Difficulty = "meadow" | "grove" | "wildwood";
 export type GameMode = "garden" | "spirit";
+export type LandmarkKind = "river" | "house" | "shed" | "mountain" | "grove";
+export type Landmark = { kind: LandmarkKind; x: number; z: number; scale: number; cellX: number; cellY: number };
 
 export const DIRS: Dir[] = ["n", "e", "s", "w"];
 export const OPP: Record<Dir, Dir> = { n: "s", e: "w", s: "n", w: "e" };
@@ -74,6 +76,7 @@ export type Maze = {
   trees: { x: number; z: number; scale: number; rot: number; hue: number }[];
   difficulty: Difficulty;
   mode: GameMode;
+  landmarks: Landmark[];
 };
 
 export function cellCenter(x: number, y: number): { x: number; z: number } {
@@ -372,6 +375,7 @@ export function generateMaze(
     trees: [],
     difficulty,
     mode,
+    landmarks: [],
   };
 
   const deadEnds: { x: number; y: number }[] = [];
@@ -411,6 +415,17 @@ export function generateMaze(
       scale: rng.range(1.1, 1.85),
       rot: rng.range(0, Math.PI * 2),
       hue: mixColor(0x2a5632, 0x4a7a44, rng.next()),
+    });
+  }
+
+  if (mode === "spirit") {
+    const kinds: LandmarkKind[] = ["river", "house", "shed", "mountain", "grove", "house", "river"];
+    maze.landmarks = kinds.map((kind, i) => {
+      const a = (i / kinds.length) * Math.PI * 2 + rng.range(-0.2, 0.2);
+      const d = Math.max(width, height) * CELL_SIZE * 0.7 + rng.range(5, 15);
+      const x = cx + Math.cos(a) * d;
+      const z = cz + Math.sin(a) * d;
+      return { kind, x, z, scale: rng.range(0.85, 1.35), cellX: Math.max(0, Math.min(width - 1, Math.round(x / CELL_SIZE))), cellY: Math.max(0, Math.min(height - 1, Math.round(z / CELL_SIZE))) };
     });
   }
 

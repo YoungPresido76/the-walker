@@ -32,6 +32,7 @@ export type Runtime = {
   difficulty: Difficulty;
   mode: GameMode;
   exitPulseT: number;
+  landmarkSeen: Set<number>;
 };
 
 export function createRuntime(maze: Maze, input: GameInput): Runtime {
@@ -72,6 +73,7 @@ export function createRuntime(maze: Maze, input: GameInput): Runtime {
     difficulty: maze.difficulty,
     mode: maze.mode,
     exitPulseT: 0,
+    landmarkSeen: new Set(),
   };
 }
 

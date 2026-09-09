@@ -142,6 +142,15 @@ export function WinOverlay({
   );
 }
 
+export function ExploreOverlay({ onContinue }: { onContinue: () => void }) {
+  return <OverlayCard>
+    <p className="text-xs font-medium tracking-[0.18em] text-faint uppercase">Spirit Grove unlocked</p>
+    <h2 className="font-display mt-3 text-3xl font-semibold tracking-tight text-fg">Beyond the hedges</h2>
+    <p className="mt-3 text-sm leading-relaxed text-muted">The maze was only the threshold. Wander through the dusk meadow, find the river, homes, groves, and mountains, and let each fixed landmark reveal itself on your map.</p>
+    <button type="button" onClick={onContinue} className="mt-7 flex h-11 w-full items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-fg">Explore the grove</button>
+  </OverlayCard>;
+}
+
 function Joystick({ input }: { input: GameInput }) {
   const base = useRef<HTMLDivElement>(null);
   const knob = useRef<HTMLDivElement>(null);

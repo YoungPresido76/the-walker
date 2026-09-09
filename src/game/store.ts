@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type Phase = "title" | "playing" | "paused" | "won";
+export type Phase = "title" | "playing" | "explore" | "paused" | "won";
 
 export type HudState = {
   phase: Phase;

@@ -5,7 +5,7 @@ import { resumeAudio, unlockAudio } from "./audio";
 import { GameInput } from "./input";
 import { generateMaze } from "./maze";
 import type { Difficulty, GameMode } from "./maze";
-import { Hud, PauseOverlay, requestLock, TitleOverlay, WinOverlay } from "./overlays";
+import { ExploreOverlay, Hud, PauseOverlay, requestLock, TitleOverlay, WinOverlay } from "./overlays";
 import { Player } from "./Player";
 import { createRuntime } from "./runtime";
 import { useHud } from "./store";
@@ -72,8 +72,9 @@ function HedgerowRun({
 
   const startPlay = useCallback(() => {
     unlockAudio();
-    runtime.phase = "playing";
-    useHud.getState().setPhase("playing");
+    const nextPhase = runtime.phase === "explore" ? "explore" : "playing";
+    runtime.phase = nextPhase;
+    useHud.getState().setPhase(nextPhase);
     if (!detectTouch()) requestLock(canvasEl.current);
   }, [runtime]);
 
@@ -161,6 +162,7 @@ function HedgerowRun({
 
       {phase === "title" ? <TitleOverlay onEnter={startPlay} difficulty={difficulty} mode={mode} onDifficulty={onDifficulty} onMode={onMode} /> : null}
       {phase === "paused" && !locked && !touch ? <PauseOverlay onResume={startPlay} /> : null}
+      {phase === "explore" ? <ExploreOverlay onContinue={startPlay} /> : null}
       {phase === "won" ? (
         <WinOverlay time={wonTime} collected={collected} total={total} onReplay={onReplay} />
       ) : null}

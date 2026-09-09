@@ -72,7 +72,7 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
   useFrame((_, delta) => {
     const dtCap = Math.min(delta, 0.1);
     const hud = useHud.getState();
-    const playing = runtime.phase === "playing";
+    const playing = runtime.phase === "playing" || runtime.phase === "explore";
     const lookLive = playing && (runtime.locked || hud.touch || runtime.input.injected.size > 0);
     const actions = runtime.input.sample();
 
@@ -166,6 +166,10 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
 
       const cell = worldToCell(runtime.x, runtime.z);
       markVisited(runtime, cell.x, cell.y);
+      for (let i = 0; i < maze.landmarks.length; i++) {
+        const landmark = maze.landmarks[i]!;
+        if (Math.hypot(runtime.x - landmark.x, runtime.z - landmark.z) < 13) runtime.landmarkSeen.add(i);
+      }
 
       for (const c of maze.collectibles) {
         if (runtime.collected.has(c.id)) continue;
@@ -177,7 +181,16 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
       }
 
       const spiritReady = runtime.mode !== "spirit" || runtime.collected.size >= maze.collectibles.length;
-      if (spiritReady && inAabb(runtime.x, runtime.z, maze.exitTrigger)) {
+      if (runtime.phase === "playing" && spiritReady && inAabb(runtime.x, runtime.z, maze.exitTrigger)) {
+        if (runtime.mode === "spirit") {
+          runtime.phase = "explore";
+          runtime.x = maze.archWorld.x;
+          runtime.z = maze.archWorld.z - 5.5;
+          useHud.setState({ phase: "explore" });
+          runtime.vx = 0;
+          runtime.vz = 0;
+          return;
+        }
         runtime.phase = "won";
         runtime.wonTime = runtime.elapsed;
         runtime.vx = 0;

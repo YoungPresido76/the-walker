@@ -96,6 +96,24 @@ function Trees({ maze }: { maze: Maze }) {
   );
 }
 
+function NatureLandmarks({ maze }: { maze: Maze }) {
+  return <group>{maze.landmarks.map((landmark, i) => {
+    const s = landmark.scale;
+    if (landmark.kind === "river") return <mesh key={i} position={[landmark.x, 0.035, landmark.z]} rotation={[-Math.PI / 2, 0, 0]}><planeGeometry args={[3.2 * s, 30 * s]} /><meshStandardMaterial color="#527d88" roughness={0.25} /></mesh>;
+    if (landmark.kind === "mountain") return <mesh key={i} position={[landmark.x, 3.5 * s, landmark.z]}><coneGeometry args={[8 * s, 7 * s, 6]} /><meshStandardMaterial color="#53656a" roughness={1} flatShading /></mesh>;
+    if (landmark.kind === "grove") return <group key={i} position={[landmark.x, 0, landmark.z]}>{[0, 1, 2, 3].map((n) => <mesh key={n} position={[(n - 1.5) * 1.4 * s, 1.5 * s, (n % 2) * 1.2 * s]}><icosahedronGeometry args={[1.2 * s, 0]} /><meshStandardMaterial color="#365d3d" flatShading /></mesh>)}</group>;
+    const shed = landmark.kind === "shed";
+    return <group key={i} position={[landmark.x, 0, landmark.z]} scale={s}><mesh position={[0, 1, 0]} castShadow><boxGeometry args={[shed ? 2.2 : 3.4, 2, shed ? 2 : 2.8]} /><meshStandardMaterial color={shed ? "#76583b" : "#9b704e"} roughness={0.9} /></mesh><mesh position={[0, 2.35, 0]} rotation={[0, Math.PI / 4, 0]}><coneGeometry args={[2.4, 1.1, 4]} /><meshStandardMaterial color="#3f3029" roughness={0.95} /></mesh></group>;
+  })}</group>;
+}
+
+function Weather() {
+  const ref = useRef<THREE.Points>(null);
+  const positions = useMemo(() => { const a = new Float32Array(180 * 3); for (let i = 0; i < 180; i++) { a[i * 3] = (Math.random() - 0.5) * 90; a[i * 3 + 1] = Math.random() * 14 + 1; a[i * 3 + 2] = (Math.random() - 0.5) * 90; } return a; }, []);
+  useFrame((_, dt) => { if (ref.current) ref.current.rotation.y += dt * 0.008; });
+  return <points ref={ref}><bufferGeometry><bufferAttribute attach="attributes-position" args={[positions, 3]} count={positions.length / 3} array={positions} itemSize={3} /></bufferGeometry><pointsMaterial color="#d8e5c8" size={0.055} transparent opacity={0.5} depthWrite={false} /></points>;
+}
+
 function Gate({ maze, runtime }: { maze: Maze; runtime: Runtime }) {
   const group = useRef<THREE.Group>(null);
   useFrame(() => {
@@ -222,14 +240,14 @@ export function World({ maze, runtime }: { maze: Maze; runtime: Runtime }) {
 
   return (
     <>
-      <color attach="background" args={[WORLD.sky]} />
-      <fog attach="fog" args={[WORLD.fog, WORLD.fogNear, WORLD.fogFar]} />
-      <hemisphereLight args={["#e8efe6", "#2c4a32", 0.72]} />
-      <ambientLight intensity={0.28} color="#f0e6d2" />
+      <color attach="background" args={["#536b78"]} />
+      <fog attach="fog" args={["#617984", 5.5, 31]} />
+      <hemisphereLight args={["#a8c0cc", "#1d3024", 0.62]} />
+      <ambientLight intensity={0.2} color="#b8cbe0" />
       <directionalLight
         position={[18, 26, 10]}
-        intensity={1.45}
-        color={WORLD.sun}
+        intensity={0.82}
+        color="#c5d5e5"
         castShadow={!cheap}
         shadow-mapSize={[1024, 1024]}
         shadow-camera-near={2}
@@ -252,6 +270,8 @@ export function World({ maze, runtime }: { maze: Maze; runtime: Runtime }) {
       <ColoredInstances items={maze.clumps} shape="ico" roughness={0.84} flatShading />
 
       <Trees maze={maze} />
+      <NatureLandmarks maze={maze} />
+      <Weather />
       <Gate maze={maze} runtime={runtime} />
       <Orbs maze={maze} runtime={runtime} />
       <HintArrow runtime={runtime} />
