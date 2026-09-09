@@ -1,0 +1,82 @@
+import { EYE_HEIGHT, HINT_COOLDOWN, HINT_DURATION } from "./constants";
+import type { GameInput } from "./input";
+import { bfsPath, cellCenter, type Maze } from "./maze";
+import type { Phase } from "./store";
+
+export type Runtime = {
+  maze: Maze;
+  input: GameInput;
+  x: number;
+  z: number;
+  yaw: number;
+  pitch: number;
+  vx: number;
+  vz: number;
+  bob: number;
+  acc: number;
+  elapsed: number;
+  collected: Set<number>;
+  visited: Uint8Array;
+  hintT: number;
+  hintCd: number;
+  hintTarget: { x: number; z: number } | null;
+  phase: Phase;
+  locked: boolean;
+  wonTime: number;
+  lastFootSign: number;
+  timeEl: HTMLElement | null;
+  hintEl: HTMLElement | null;
+  collectEl: HTMLElement | null;
+  mapEl: HTMLCanvasElement | null;
+};
+
+export function createRuntime(maze: Maze, input: GameInput): Runtime {
+  const visited = new Uint8Array(maze.width * maze.height);
+  visited[maze.start.y * maze.width + maze.start.x] = 1;
+  let yaw = 0;
+  const path = bfsPath(maze, maze.start, maze.exit);
+  if (path[1]) {
+    const n = cellCenter(path[1].x, path[1].y);
+    yaw = Math.atan2(-(n.x - maze.startWorld.x), -(n.z - maze.startWorld.z));
+  }
+  return {
+    maze,
+    input,
+    x: maze.startWorld.x,
+    z: maze.startWorld.z + 0.15,
+    yaw,
+    pitch: 0.04,
+    vx: 0,
+    vz: 0,
+    bob: 0,
+    acc: 0,
+    elapsed: 0,
+    collected: new Set(),
+    visited,
+    hintT: 0,
+    hintCd: 0,
+    hintTarget: null,
+    phase: "title",
+    locked: false,
+    wonTime: 0,
+    lastFootSign: 1,
+    timeEl: null,
+    hintEl: null,
+    collectEl: null,
+    mapEl: null,
+  };
+}
+
+export const PLAYER_EYE = EYE_HEIGHT;
+export { HINT_COOLDOWN, HINT_DURATION };
+
+declare global {
+  interface Window {
+    __controlsTest?: {
+      getYaw: () => number;
+      getSpeed: () => number;
+      getPosition: () => { x: number; z: number };
+      setKeys: (codes: string[]) => void;
+    };
+  }
+}
