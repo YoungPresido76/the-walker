@@ -124,6 +124,10 @@ function HedgerowRun({
     runtime.input.pulseHint();
   }, [runtime]);
 
+  const onFlashlight = useCallback(() => {
+    runtime.input.pulseFlashlight();
+  }, [runtime]);
+
   const cheap = typeof window !== "undefined" && window.innerWidth < 520;
 
   return (
@@ -158,7 +162,7 @@ function HedgerowRun({
 
       <div className="vignette" />
 
-      <Hud runtime={runtime} onHint={onHint} />
+      <Hud runtime={runtime} onHint={onHint} onFlashlight={onFlashlight} />
 
       {phase === "title" ? <TitleOverlay onEnter={startPlay} difficulty={difficulty} mode={mode} onDifficulty={onDifficulty} onMode={onMode} /> : null}
       {phase === "paused" && !locked && !touch ? <PauseOverlay onResume={startPlay} /> : null}

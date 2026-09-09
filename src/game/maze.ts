@@ -9,7 +9,7 @@ import { createRng, mixColor, type Rng } from "./rng";
 
 export type Dir = "n" | "e" | "s" | "w";
 export type Difficulty = "meadow" | "grove" | "wildwood";
-export type GameMode = "garden" | "spirit";
+export type GameMode = "garden" | "spirit" | "underground";
 export type LandmarkKind = "river" | "house" | "shed" | "mountain" | "grove";
 export type Landmark = { kind: LandmarkKind; x: number; z: number; scale: number; cellX: number; cellY: number };
 
@@ -66,6 +66,7 @@ export type Maze = {
   startWorld: { x: number; z: number };
   exitWorld: { x: number; z: number };
   archWorld: { x: number; z: number };
+  scareWorld: { x: number; z: number };
   exitTrigger: Aabb;
   collectibles: Collectible[];
   wallAabbs: Aabb[];
@@ -251,6 +252,8 @@ export function generateMaze(
   const startWorld = cellCenter(start.x, start.y);
   const exitWorld = cellCenter(exit.x, exit.y);
   const archWorld = { x: exitWorld.x, z: exitWorld.z - CELL_SIZE / 2 };
+  const scareCell = { x: Math.floor(width / 2), y: Math.max(1, Math.floor(height / 2)) };
+  const scareWorld = cellCenter(scareCell.x, scareCell.y);
   const exitTrigger: Aabb = {
     minX: exitWorld.x - 1.2,
     maxX: exitWorld.x + 1.2,
@@ -365,6 +368,7 @@ export function generateMaze(
     startWorld,
     exitWorld,
     archWorld,
+    scareWorld,
     exitTrigger,
     collectibles: [],
     wallAabbs,

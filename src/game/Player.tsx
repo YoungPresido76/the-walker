@@ -1,7 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect } from "react";
 import type * as THREE from "three";
-import { chime, footstep, peekTone, rustle, setAmbientScene, winFanfare } from "./audio";
+import { chime, footstep, peekTone, rustle, scareSting, setAmbientScene, winFanfare } from "./audio";
 import { collideCircle, wallsNear } from "./collision";
 import {
   ACCEL,
@@ -13,6 +13,8 @@ import {
   MOUSE_SENS,
   PITCH_LIMIT,
   PLAYER_RADIUS,
+  SCARE_DISTANCE,
+  SCARE_DURATION,
   SPRINT_SPEED,
   STEP,
   WALK_SPEED,
@@ -88,7 +90,14 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
       runtime.hintTarget = hintWorldTarget(maze, cell.x, cell.y);
       runtime.hintT = HINT_DURATION;
       runtime.hintCd = HINT_COOLDOWN;
+      runtime.peekCount += 1;
+      useHud.setState({ peeks: runtime.peekCount });
       peekTone();
+    }
+
+    if (playing && actions.flashlightPressed) {
+      runtime.flashlightOn = !runtime.flashlightOn;
+      useHud.setState({ flashlightOn: runtime.flashlightOn });
     }
 
     runtime.acc += dtCap;
@@ -111,6 +120,7 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
       if (runtime.exitPulseT > 0) runtime.exitPulseT = Math.max(0, runtime.exitPulseT - STEP);
       if (runtime.hintT > 0) runtime.hintT = Math.max(0, runtime.hintT - STEP);
       if (runtime.hintCd > 0) runtime.hintCd = Math.max(0, runtime.hintCd - STEP);
+      if (runtime.scareT > 0) runtime.scareT = Math.max(0, runtime.scareT - STEP);
 
       const fx = -Math.sin(runtime.yaw);
       const fz = -Math.cos(runtime.yaw);
@@ -164,6 +174,16 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
       runtime.x = px;
       runtime.z = pz;
 
+      if (runtime.mode === "underground" && !runtime.scareTriggered) {
+        const distToScare = Math.hypot(runtime.x - maze.scareWorld.x, runtime.z - maze.scareWorld.z);
+        if (distToScare < SCARE_DISTANCE) {
+          runtime.scareTriggered = true;
+          runtime.scareT = SCARE_DURATION;
+          useHud.setState({ scareTriggered: true });
+          scareSting();
+        }
+      }
+
       const cell = worldToCell(runtime.x, runtime.z);
       markVisited(runtime, cell.x, cell.y);
       for (let i = 0; i < maze.landmarks.length; i++) {
@@ -215,8 +235,9 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
     const bobY = Math.sin(runtime.bob) * 0.022 * moveAmt;
     const sway = Math.cos(runtime.bob * 0.5) * 0.006 * moveAmt;
 
-    camera.position.set(runtime.x, EYE_HEIGHT + bobY, runtime.z);
-    camera.rotation.set(runtime.pitch, runtime.yaw, sway);
+    const scareShake = runtime.scareT > 0 ? Math.sin(runtime.scareT * 34) * 0.035 * Math.min(1, runtime.scareT * 2) : 0;
+    camera.position.set(runtime.x, EYE_HEIGHT + bobY + scareShake, runtime.z);
+    camera.rotation.set(runtime.pitch + scareShake * 0.7, runtime.yaw + scareShake, sway + scareShake * 0.45);
 
     if (runtime.timeEl && playing) runtime.timeEl.textContent = formatTime(runtime.elapsed);
     if (runtime.collectEl) {

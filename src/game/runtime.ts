@@ -19,7 +19,11 @@ export type Runtime = {
   visited: Uint8Array;
   hintT: number;
   hintCd: number;
+  peekCount: number;
   hintTarget: { x: number; z: number } | null;
+  flashlightOn: boolean;
+  scareT: number;
+  scareTriggered: boolean;
   phase: Phase;
   locked: boolean;
   wonTime: number;
@@ -60,7 +64,11 @@ export function createRuntime(maze: Maze, input: GameInput): Runtime {
     visited,
     hintT: 0,
     hintCd: 0,
+    peekCount: 0,
     hintTarget: null,
+    flashlightOn: true,
+    scareT: 0,
+    scareTriggered: false,
     phase: "title",
     locked: false,
     wonTime: 0,

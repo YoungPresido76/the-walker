@@ -260,6 +260,21 @@ export function peekTone() {
   o.stop(t + 0.28);
 }
 
+export function scareSting() {
+  const c = ac();
+  if (!c || !sfx || !noise) return;
+  const t = c.currentTime;
+  const o = c.createOscillator();
+  const g = envGain(c, t, 0.008, 0.72, 0.22);
+  o.type = "sawtooth";
+  o.frequency.setValueAtTime(92, t);
+  o.frequency.exponentialRampToValueAtTime(38, t + 0.62);
+  o.connect(g);
+  o.start(t);
+  o.stop(t + 0.8);
+  noiseBurst("bandpass", 940, 0.34, 0.12, 1.5);
+}
+
 export function winFanfare() {
   stopMusic();
   const c = ac();

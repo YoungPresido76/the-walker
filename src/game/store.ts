@@ -6,6 +6,9 @@ export type HudState = {
   phase: Phase;
   collected: number;
   total: number;
+  peeks: number;
+  scareTriggered: boolean;
+  flashlightOn: boolean;
   wonTime: number;
   seed: number;
   locked: boolean;
@@ -18,6 +21,9 @@ export const useHud = create<HudState>((set) => ({
   phase: "title",
   collected: 0,
   total: 8,
+  peeks: 0,
+  scareTriggered: false,
+  flashlightOn: true,
   wonTime: 0,
   seed: 0,
   locked: false,
@@ -27,6 +33,9 @@ export const useHud = create<HudState>((set) => ({
       phase: "title",
       collected: 0,
       total,
+      peeks: 0,
+      scareTriggered: false,
+      flashlightOn: true,
       wonTime: 0,
       seed,
       locked: false,

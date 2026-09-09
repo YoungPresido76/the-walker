@@ -12,16 +12,18 @@ export const MAZE_H = 13;
 export const STEP = 1 / 60;
 export const HINT_DURATION = 2.2;
 export const HINT_COOLDOWN = 8;
+export const SCARE_DISTANCE = 3.8;
+export const SCARE_DURATION = 2.4;
 export const MOUSE_SENS = 0.00215;
 export const TOUCH_LOOK_SENS = 0.0034;
 export const GAMEPAD_LOOK = 2.15;
 export const PITCH_LIMIT = Math.PI / 2 - 0.04;
 
 export const WORLD = {
-  sky: "#8aa4b0",
-  fog: "#7e98a4",
-  fogNear: 7,
-  fogFar: 26,
+  sky: "#09131a",
+  fog: "#0f1b22",
+  fogNear: 8,
+  fogFar: 52,
   grass: "#355834",
   grassDark: "#2a4629",
   gravel: "#c4b392",
