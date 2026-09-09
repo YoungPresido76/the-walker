@@ -14,9 +14,9 @@ export const HINT_DURATION = 2.2;
 export const HINT_COOLDOWN = 8;
 export const SCARE_DISTANCE = 3.8;
 export const SCARE_DURATION = 2.4;
-// 95% drains over 3 minutes; the final 5% is a deliberately long reserve.
+// 95% drains over 3 minutes; the final 5% slows down for roughly 1 extra minute.
 export const FLASHLIGHT_MAIN_DRAIN = 95 / 180;
-export const FLASHLIGHT_RESERVE_DRAIN = 5 / 240;
+export const FLASHLIGHT_RESERVE_DRAIN = 5 / 60;
 export const FLASHLIGHT_FLICKER_THRESHOLD = 3;
 export const STALKER_SPEED = 3.85;
 export const STALKER_TRIGGER_DELAY = 1.8;

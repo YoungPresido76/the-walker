@@ -11,7 +11,7 @@ The game now has a visible peek counter, a dark expanded horizon instead of a br
 - Underground mode is selectable from the title card and presents a darker fog, cave-textured floor/walls, ceiling, and flashlight cone.
 - The flashlight can be toggled with `L` or the touch Light button.
 - Approaching the seeded scare location triggers a one-shot silhouette, red eyes, camera shake, audio sting, and `Don't look back` feedback.
-- The underground flashlight drains from 100% to 5% over 3 minutes, reserves the final 5% for approximately 4 more minutes, shuts off at 0%, and can be toggled with `L` or the touch Light button.
+- The underground flashlight drains from 100% to 5% over 3 minutes, then drains the final 5% more slowly over approximately 1 minute, for about 4 minutes total before shutting off at 0%.
 - At 3% battery or below, the flashlight automatically flickers on and off because of the low charge. Each underground collectible restores 3%, capped at 100%.
 - The stalker appears behind the player after the scare warning. Leaving the flashlight on during its peek causes a light-based game over; switching it off starts a chase, and sprinting can outrun it.
 - Getting caught during pursuit produces a game-over overlay and a replay path without reloading the page.
