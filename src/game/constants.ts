@@ -21,6 +21,19 @@ export const FLASHLIGHT_FLICKER_THRESHOLD = 3;
 export const STALKER_SPEED = 3.85;
 export const STALKER_TRIGGER_DELAY = 1.8;
 export const STALKER_CATCH_DISTANCE = 0.72;
+// The stalker re-paths through actual maze corridors this often instead of
+// beelining through hedges.
+export const STALKER_ROUTE_RECOMPUTE = 0.4;
+// How directly the camera has to point at the stalker to count as "looking
+// back" at it (cosine of the half-angle of the detection cone).
+export const STALKER_LOOK_FOV_COS = Math.cos((34 * Math.PI) / 180);
+// Sustained distance/time needed to shake a pursuit and go quiet again.
+export const STALKER_LOSE_DISTANCE = 16;
+export const STALKER_LOSE_TIME = 3.5;
+// Cooldown range before it can peek at the player again after being lost.
+export const STALKER_RESPAWN_MIN = 15;
+export const STALKER_RESPAWN_MAX = 26;
+export const STALKER_PEEK_PROBE_STEPS = 6;
 export const MOUSE_SENS = 0.00215;
 export const TOUCH_LOOK_SENS = 0.0034;
 export const GAMEPAD_LOOK = 2.15;

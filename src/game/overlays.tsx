@@ -376,10 +376,10 @@ export function Hud({
         </div>
       ) : null}
 
-      {playing && runtime.mode === "underground" && scareTriggered ? (
+      {playing && runtime.mode === "underground" && scareTriggered && runtime.stalkerState !== "dormant" ? (
         <div className={`pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 text-center ${runtime.stalkerState === "pursuing" ? "animate-pulse" : ""}`}>
           <p className="font-display text-lg tracking-[0.28em] text-red-200/80 uppercase drop-shadow-[0_0_12px_rgba(180,42,34,0.75)]">{runtime.stalkerState === "pursuing" ? "RUN" : "Don&apos;t look back"}</p>
-          <p className="mt-2 text-[10px] tracking-[0.22em] text-red-100/55 uppercase">{runtime.stalkerState === "peeking" ? "kill the light" : runtime.stalkerState === "pursuing" ? "it is behind you" : "something is listening"}</p>
+          <p className="mt-2 text-[10px] tracking-[0.22em] text-red-100/55 uppercase">{runtime.stalkerState === "peeking" ? "kill the light" : "it is behind you"}</p>
         </div>
       ) : null}
 

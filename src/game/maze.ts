@@ -159,6 +159,33 @@ export function hintWorldTarget(
   return cellCenter(n.x, n.y);
 }
 
+// Which cardinal direction a yaw angle is mostly facing, snapped to the grid
+// axes the maze corridors run along.
+export function facingDir(yaw: number): Dir {
+  const fx = -Math.sin(yaw);
+  const fz = -Math.cos(yaw);
+  return Math.abs(fx) > Math.abs(fz) ? (fx > 0 ? "e" : "w") : fz > 0 ? "s" : "n";
+}
+
+// Walks straight through open doorways from (fromX, fromY) in `dir`, returning
+// the run of cells that form an unbroken corridor, so we only ever place the
+// stalker somewhere the player can actually see down a straight hallway.
+export function probeCorridor(maze: Maze, fromX: number, fromY: number, dir: Dir, maxSteps: number): { x: number; y: number }[] {
+  const out: { x: number; y: number }[] = [];
+  const [dx, dy] = DELTA[dir];
+  let cx = fromX;
+  let cy = fromY;
+  for (let i = 0; i < maxSteps; i++) {
+    const cell = maze.cells[cy]?.[cx];
+    if (!cell || cell[dir]) break;
+    cx += dx;
+    cy += dy;
+    if (cx < 0 || cy < 0 || cx >= maze.width || cy >= maze.height) break;
+    out.push({ x: cx, y: cy });
+  }
+  return out;
+}
+
 export function wallCount(cell: Cell): number {
   return Number(cell.n) + Number(cell.e) + Number(cell.s) + Number(cell.w);
 }

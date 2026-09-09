@@ -19,6 +19,13 @@ import {
   SCARE_DISTANCE,
   SCARE_DURATION,
   STALKER_CATCH_DISTANCE,
+  STALKER_LOOK_FOV_COS,
+  STALKER_LOSE_DISTANCE,
+  STALKER_LOSE_TIME,
+  STALKER_PEEK_PROBE_STEPS,
+  STALKER_RESPAWN_MAX,
+  STALKER_RESPAWN_MIN,
+  STALKER_ROUTE_RECOMPUTE,
   STALKER_SPEED,
   STALKER_TRIGGER_DELAY,
   SPRINT_SPEED,
@@ -26,7 +33,7 @@ import {
   WALK_SPEED,
   WORLD,
 } from "./constants";
-import { hintWorldTarget, worldToCell, type Maze } from "./maze";
+import { bfsPath, cellCenter, facingDir, hintWorldTarget, probeCorridor, worldToCell, type Maze } from "./maze";
 import { drawMinimap, markVisited } from "./minimap";
 import type { Runtime } from "./runtime";
 import { formatTime, useHud } from "./store";
@@ -43,6 +50,73 @@ function inAabb(
   b: { minX: number; maxX: number; minZ: number; maxZ: number },
 ) {
   return x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ;
+}
+
+// Walks the stalker toward the player through actual maze corridors instead
+// of a straight line, so it can never clip through a hedge to cut a corner
+// the player can't. Re-paths periodically rather than every tick since a
+// bfs over the whole maze every physics step is wasted work once the target
+// cell hasn't changed.
+function advanceStalker(runtime: Runtime, maze: Maze, targetX: number, targetZ: number, speed: number) {
+  runtime.stalkerRouteT -= STEP;
+  if (runtime.stalkerRouteT <= 0 || runtime.stalkerRoute.length === 0) {
+    const fromCell = worldToCell(runtime.stalkerX, runtime.stalkerZ);
+    const toCell = worldToCell(targetX, targetZ);
+    const path = bfsPath(maze, fromCell, toCell);
+    runtime.stalkerRoute = path.slice(1).map((c) => cellCenter(c.x, c.y));
+    runtime.stalkerRouteT = STALKER_ROUTE_RECOMPUTE;
+  }
+  let remaining = speed * STEP;
+  while (remaining > 0 && runtime.stalkerRoute.length > 0) {
+    const next = runtime.stalkerRoute[0]!;
+    const dx = next.x - runtime.stalkerX;
+    const dz = next.z - runtime.stalkerZ;
+    const d = Math.hypot(dx, dz);
+    if (d <= remaining || d < 1e-4) {
+      runtime.stalkerX = next.x;
+      runtime.stalkerZ = next.z;
+      runtime.stalkerRoute.shift();
+      remaining -= d;
+    } else {
+      runtime.stalkerX += (dx / d) * remaining;
+      runtime.stalkerZ += (dz / d) * remaining;
+      remaining = 0;
+    }
+  }
+}
+
+// True once the camera is aimed squarely at the stalker's current position,
+// independent of whether the mouse happens to be moving on this exact tick.
+function isLookingAtStalker(runtime: Runtime): boolean {
+  const dx = runtime.stalkerX - runtime.x;
+  const dz = runtime.stalkerZ - runtime.z;
+  const dist = Math.hypot(dx, dz);
+  if (dist < 0.05) return true;
+  const fx = -Math.sin(runtime.yaw);
+  const fz = -Math.cos(runtime.yaw);
+  const dot = (dx / dist) * fx + (dz / dist) * fz;
+  return dot > STALKER_LOOK_FOV_COS;
+}
+
+// Places the stalker a couple of cells down whichever straight corridor the
+// player is currently facing, so it can pop into view mid-hallway instead of
+// only ever appearing at the one scripted spot.
+function spawnPeekAhead(runtime: Runtime, maze: Maze): boolean {
+  const cell = worldToCell(runtime.x, runtime.z);
+  const dir = facingDir(runtime.yaw);
+  const corridor = probeCorridor(maze, cell.x, cell.y, dir, STALKER_PEEK_PROBE_STEPS);
+  if (corridor.length < 2) return false;
+  const spotIdx = Math.min(corridor.length - 1, Math.max(1, Math.floor(corridor.length * 0.7)));
+  const spot = corridor[spotIdx]!;
+  const w = cellCenter(spot.x, spot.y);
+  runtime.stalkerState = "peeking";
+  runtime.stalkerT = STALKER_TRIGGER_DELAY;
+  runtime.stalkerX = w.x;
+  runtime.stalkerZ = w.z;
+  runtime.stalkerRoute = [];
+  runtime.stalkerRouteT = 0;
+  stalkerWhisper();
+  return true;
 }
 
 export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
@@ -139,43 +213,57 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
       if (runtime.hintCd > 0) runtime.hintCd = Math.max(0, runtime.hintCd - STEP);
       if (runtime.scareT > 0) runtime.scareT = Math.max(0, runtime.scareT - STEP);
 
-      if (runtime.mode === "underground" && runtime.stalkerState !== "dormant") {
-        runtime.stalkerT = Math.max(0, runtime.stalkerT - STEP);
-        if (runtime.stalkerState === "peeking") {
-          const backX = Math.sin(runtime.yaw);
-          const backZ = Math.cos(runtime.yaw);
-          const toStalkerX = runtime.stalkerX - runtime.x;
-          const toStalkerZ = runtime.stalkerZ - runtime.z;
-          const lookedBack = (backX * toStalkerX + backZ * toStalkerZ) / (Math.hypot(toStalkerX, toStalkerZ) || 1) > 0.72 && Math.abs(actions.lookX) > 0.01;
-          if (lookedBack) runtime.stalkerT = 0;
-          if (runtime.stalkerT <= 0) {
-            if (runtime.flashlightOn) {
-              runtime.gameOverReason = lookedBack ? "looked" : "light";
-              runtime.phase = "gameover";
-              useHud.setState({ phase: "gameover", gameOverReason: runtime.gameOverReason });
-              caughtSting();
-              if (document.pointerLockElement) document.exitPointerLock();
-            } else {
-              runtime.stalkerState = "pursuing";
-              runtime.stalkerT = 999;
-              stalkerWhisper();
+      if (runtime.mode === "underground") {
+        if (runtime.stalkerState === "dormant") {
+          // After the first scripted encounter, it doesn't just vanish for
+          // good — it goes quiet for a while and can catch up with you
+          // again further down the maze.
+          if (runtime.scareTriggered) {
+            runtime.stalkerCd = Math.max(0, runtime.stalkerCd - STEP);
+            if (runtime.stalkerCd <= 0 && spawnPeekAhead(runtime, maze)) {
+              runtime.stalkerCd = STALKER_RESPAWN_MIN + Math.random() * (STALKER_RESPAWN_MAX - STALKER_RESPAWN_MIN);
             }
           }
-        } else if (runtime.stalkerState === "pursuing") {
-          const dx = runtime.x - runtime.stalkerX;
-          const dz = runtime.z - runtime.stalkerZ;
-          const dist = Math.hypot(dx, dz);
-          if (dist > 0.01) {
-            const chaseStep = Math.min(dist, STALKER_SPEED * STEP);
-            runtime.stalkerX += (dx / dist) * chaseStep;
-            runtime.stalkerZ += (dz / dist) * chaseStep;
-          }
-          if (dist < STALKER_CATCH_DISTANCE) {
-            runtime.gameOverReason = "caught";
-            runtime.phase = "gameover";
-            useHud.setState({ phase: "gameover", gameOverReason: "caught" });
-            caughtSting();
-            if (document.pointerLockElement) document.exitPointerLock();
+        } else {
+          runtime.stalkerT = Math.max(0, runtime.stalkerT - STEP);
+          if (runtime.stalkerState === "peeking") {
+            const lookedBack = isLookingAtStalker(runtime);
+            if (lookedBack) runtime.stalkerT = 0;
+            if (runtime.stalkerT <= 0) {
+              if (runtime.flashlightOn) {
+                runtime.gameOverReason = lookedBack ? "looked" : "light";
+                runtime.phase = "gameover";
+                useHud.setState({ phase: "gameover", gameOverReason: runtime.gameOverReason });
+                caughtSting();
+                if (document.pointerLockElement) document.exitPointerLock();
+              } else {
+                runtime.stalkerState = "pursuing";
+                runtime.stalkerRoute = [];
+                runtime.stalkerRouteT = 0;
+                runtime.stalkerLoseT = 0;
+                stalkerWhisper();
+              }
+            }
+          } else if (runtime.stalkerState === "pursuing") {
+            advanceStalker(runtime, maze, runtime.x, runtime.z, STALKER_SPEED);
+            const dist = Math.hypot(runtime.x - runtime.stalkerX, runtime.z - runtime.stalkerZ);
+            if (dist < STALKER_CATCH_DISTANCE) {
+              runtime.gameOverReason = "caught";
+              runtime.phase = "gameover";
+              useHud.setState({ phase: "gameover", gameOverReason: "caught" });
+              caughtSting();
+              if (document.pointerLockElement) document.exitPointerLock();
+            } else if (dist > STALKER_LOSE_DISTANCE) {
+              runtime.stalkerLoseT += STEP;
+              if (runtime.stalkerLoseT > STALKER_LOSE_TIME) {
+                runtime.stalkerState = "dormant";
+                runtime.stalkerLoseT = 0;
+                runtime.stalkerRoute = [];
+                runtime.stalkerCd = STALKER_RESPAWN_MIN + Math.random() * (STALKER_RESPAWN_MAX - STALKER_RESPAWN_MIN);
+              }
+            } else {
+              runtime.stalkerLoseT = 0;
+            }
           }
         }
       }

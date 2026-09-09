@@ -29,6 +29,10 @@ export type Runtime = {
   stalkerT: number;
   stalkerX: number;
   stalkerZ: number;
+  stalkerRoute: { x: number; z: number }[];
+  stalkerRouteT: number;
+  stalkerLoseT: number;
+  stalkerCd: number;
   gameOverReason: "battery" | "light" | "caught" | "looked" | null;
   horrorSeen: Set<string>;
   horrorText: string;
@@ -83,6 +87,10 @@ export function createRuntime(maze: Maze, input: GameInput): Runtime {
     stalkerT: 0,
     stalkerX: maze.startWorld.x,
     stalkerZ: maze.startWorld.z - 6,
+    stalkerRoute: [],
+    stalkerRouteT: 0,
+    stalkerLoseT: 0,
+    stalkerCd: 0,
     gameOverReason: null,
     horrorSeen: new Set(),
     horrorText: "",
