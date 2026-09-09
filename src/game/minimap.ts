@@ -36,19 +36,17 @@ export function drawMinimap(rt: Runtime) {
 
   ctx.translate(r, r);
   const expanded = rt.mapExpanded;
-  if (!expanded) ctx.rotate(rt.yaw);
+  ctx.rotate(rt.yaw);
 
   const scale = expanded
-    ? Math.min((w - 18) / (maze.width * CELL_SIZE), (w - 18) / (maze.height * CELL_SIZE))
+    ? Math.min(5.6, (w - 18) / (Math.max(maze.width, maze.height) * CELL_SIZE))
     : 5.6;
-  const mapCenterX = ((maze.width - 1) * CELL_SIZE) / 2;
-  const mapCenterZ = ((maze.height - 1) * CELL_SIZE) / 2;
   const worldToMap = (x: number, z: number) => ({
-    x: (x - (expanded ? mapCenterX : rt.x)) * scale,
-    y: (z - (expanded ? mapCenterZ : rt.z)) * scale,
+    x: (x - rt.x) * scale,
+    y: (z - rt.z) * scale,
   });
 
-  const visR = expanded ? Infinity : r + 8;
+  const visR = expanded ? r - 8 : r + 8;
   for (let y = 0; y < maze.height; y++) {
     for (let x = 0; x < maze.width; x++) {
       if (!rt.visited[y * maze.width + x]) continue;
@@ -80,15 +78,16 @@ export function drawMinimap(rt: Runtime) {
       }
       ctx.stroke();
 
-      if (x === maze.exit.x && y === maze.exit.y) {
-        const g = worldToMap(maze.archWorld.x, maze.archWorld.z);
-        ctx.fillStyle = GATE;
-        ctx.beginPath();
-        ctx.arc(g.x, g.y, 4, 0, Math.PI * 2);
-        ctx.fill();
-      }
     }
   }
+
+  // Keep the destination visible even before the player has explored its cell;
+  // the connecting walls and route remain hidden until discovered.
+  const gate = worldToMap(maze.archWorld.x, maze.archWorld.z);
+  ctx.fillStyle = GATE;
+  ctx.beginPath();
+  ctx.arc(gate.x, gate.y, expanded ? 5 : 4, 0, Math.PI * 2);
+  ctx.fill();
 
   for (const orb of maze.collectibles) {
     if (rt.collected.has(orb.id)) continue;
@@ -101,7 +100,7 @@ export function drawMinimap(rt: Runtime) {
     ctx.fill();
   }
 
-  if (!expanded && rt.hintT > 0 && rt.hintTarget) {
+  if (rt.hintT > 0 && rt.hintTarget) {
     const p = worldToMap(rt.hintTarget.x, rt.hintTarget.z);
     const ang = Math.atan2(p.y, p.x);
     const d = Math.min(32, Math.hypot(p.x, p.y));
@@ -128,7 +127,7 @@ export function drawMinimap(rt: Runtime) {
     ctx.globalAlpha = 1;
   }
 
-  if (!expanded) ctx.rotate(-rt.yaw);
+  ctx.rotate(-rt.yaw);
   ctx.fillStyle = SELF;
   ctx.beginPath();
   ctx.moveTo(0, -7);

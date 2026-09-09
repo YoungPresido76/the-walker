@@ -240,7 +240,7 @@ export function Hud({
             type="button"
             aria-label="Toggle full explored map"
             onClick={() => setMapExpanded((open) => !open)}
-            className={`pointer-events-auto minimap-disk overflow-hidden bg-bg/85 ${mapExpanded ? "fixed inset-4 z-40 size-auto rounded-2xl border border-border shadow-2xl sm:inset-10" : "size-[120px] rounded-full sm:size-[148px]"}`}
+            className={`pointer-events-auto minimap-disk overflow-hidden bg-bg/90 ${mapExpanded ? "fixed top-1/2 left-1/2 z-40 aspect-square w-[min(86vw,720px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border shadow-2xl" : "size-[120px] rounded-full sm:size-[148px]"}`}
           >
             <canvas ref={mapRef} className="size-full" />
             <span className="sr-only">Tap to {mapExpanded ? "close" : "open"} full map</span>

@@ -193,8 +193,8 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
       if (s > 0 && runtime.lastFootSign <= 0) footstep(0.55 + moveAmt * 0.45);
       runtime.lastFootSign = s;
     }
-    const bobY = Math.sin(runtime.bob) * 0.046 * moveAmt;
-    const sway = Math.cos(runtime.bob * 0.5) * 0.016 * moveAmt;
+    const bobY = Math.sin(runtime.bob) * 0.022 * moveAmt;
+    const sway = Math.cos(runtime.bob * 0.5) * 0.006 * moveAmt;
 
     camera.position.set(runtime.x, EYE_HEIGHT + bobY, runtime.z);
     camera.rotation.set(runtime.pitch, runtime.yaw, sway);
