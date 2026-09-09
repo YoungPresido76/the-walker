@@ -206,11 +206,18 @@ function Flashlight({ runtime }: { runtime: Runtime }) {
 
 function UndergroundDetails({ maze, runtime, stone, rune }: { maze: Maze; runtime: Runtime; stone: THREE.Texture; rune: THREE.Texture }) {
   const figure = useRef<THREE.Group>(null);
+  const stalker = useRef<THREE.Group>(null);
   useFrame(() => {
     if (!figure.current) return;
     figure.current.visible = runtime.scareT > 0;
     figure.current.scale.setScalar(1 + Math.max(0, runtime.scareT) * 0.06);
     figure.current.position.y = Math.sin(runtime.elapsed * 18) * 0.04;
+    if (stalker.current) {
+      stalker.current.visible = runtime.stalkerState !== "dormant";
+      stalker.current.position.set(runtime.stalkerX, 0, runtime.stalkerZ);
+      stalker.current.lookAt(runtime.x, 1.45, runtime.z);
+      stalker.current.scale.setScalar(runtime.stalkerState === "pursuing" ? 1.08 + Math.sin(runtime.elapsed * 15) * 0.035 : 0.92);
+    }
   });
   const { x, z } = maze.scareWorld;
   return (
@@ -241,6 +248,16 @@ function UndergroundDetails({ maze, runtime, stone, rune }: { maze: Maze; runtim
           <meshBasicMaterial color="#e14a3c" />
         </mesh>
         <pointLight position={[0, 2.7, -0.3]} color="#b82926" intensity={runtime.scareT > 0 ? 1.8 : 0} distance={5} decay={2} />
+      </group>
+      <group ref={stalker} position={[0, 0, -8]} visible={false}>
+        <mesh position={[0, 1.25, 0]} castShadow>
+          <coneGeometry args={[0.72, 2.9, 7]} />
+          <meshStandardMaterial color="#010204" roughness={1} emissive="#05070b" emissiveIntensity={0.2} />
+        </mesh>
+        <mesh position={[0, 2.78, 0]}><sphereGeometry args={[0.38, 12, 8]} /><meshStandardMaterial color="#020305" roughness={1} /></mesh>
+        <mesh position={[-0.13, 2.83, -0.34]}><sphereGeometry args={[0.055, 8, 6]} /><meshBasicMaterial color="#ff4538" /></mesh>
+        <mesh position={[0.13, 2.83, -0.34]}><sphereGeometry args={[0.055, 8, 6]} /><meshBasicMaterial color="#ff4538" /></mesh>
+        <pointLight position={[0, 2.8, -0.25]} color="#a51f26" intensity={1.6} distance={4.5} decay={2} />
       </group>
     </>
   );

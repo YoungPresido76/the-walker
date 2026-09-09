@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type Phase = "title" | "playing" | "explore" | "paused" | "won";
+export type Phase = "title" | "playing" | "explore" | "paused" | "won" | "gameover";
 
 export type HudState = {
   phase: Phase;
@@ -9,6 +9,8 @@ export type HudState = {
   peeks: number;
   scareTriggered: boolean;
   flashlightOn: boolean;
+  battery: number;
+  gameOverReason: "battery" | "light" | "caught" | "looked" | null;
   wonTime: number;
   seed: number;
   locked: boolean;
@@ -24,6 +26,8 @@ export const useHud = create<HudState>((set) => ({
   peeks: 0,
   scareTriggered: false,
   flashlightOn: true,
+  battery: 100,
+  gameOverReason: null,
   wonTime: 0,
   seed: 0,
   locked: false,
@@ -36,6 +40,8 @@ export const useHud = create<HudState>((set) => ({
       peeks: 0,
       scareTriggered: false,
       flashlightOn: true,
+      battery: 100,
+      gameOverReason: null,
       wonTime: 0,
       seed,
       locked: false,

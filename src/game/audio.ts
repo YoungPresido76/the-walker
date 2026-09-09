@@ -275,6 +275,26 @@ export function scareSting() {
   noiseBurst("bandpass", 940, 0.34, 0.12, 1.5);
 }
 
+export function stalkerWhisper() {
+  noiseBurst("bandpass", 420, 0.62, 0.1, 0.48);
+  const c = ac();
+  if (!c || !sfx) return;
+  const t = c.currentTime;
+  const o = c.createOscillator();
+  o.type = "sine";
+  o.frequency.setValueAtTime(170, t);
+  o.frequency.exponentialRampToValueAtTime(68, t + 0.52);
+  const g = envGain(c, t, 0.02, 0.55, 0.12);
+  o.connect(g);
+  o.start(t);
+  o.stop(t + 0.64);
+}
+
+export function caughtSting() {
+  scareSting();
+  noiseBurst("highpass", 1600, 0.5, 0.22, 1.8);
+}
+
 export function winFanfare() {
   stopMusic();
   const c = ac();

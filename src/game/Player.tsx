@@ -1,12 +1,13 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect } from "react";
 import type * as THREE from "three";
-import { chime, footstep, peekTone, rustle, scareSting, setAmbientScene, winFanfare } from "./audio";
+import { caughtSting, chime, footstep, peekTone, rustle, scareSting, setAmbientScene, stalkerWhisper, winFanfare } from "./audio";
 import { collideCircle, wallsNear } from "./collision";
 import {
   ACCEL,
   EYE_HEIGHT,
   FRICTION,
+  FLASHLIGHT_DRAIN,
   GAMEPAD_LOOK,
   HINT_COOLDOWN,
   HINT_DURATION,
@@ -15,6 +16,9 @@ import {
   PLAYER_RADIUS,
   SCARE_DISTANCE,
   SCARE_DURATION,
+  STALKER_CATCH_DISTANCE,
+  STALKER_SPEED,
+  STALKER_TRIGGER_DELAY,
   SPRINT_SPEED,
   STEP,
   WALK_SPEED,
@@ -96,7 +100,7 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
     }
 
     if (playing && actions.flashlightPressed) {
-      runtime.flashlightOn = !runtime.flashlightOn;
+      runtime.flashlightOn = runtime.battery > 0 && !runtime.flashlightOn;
       useHud.setState({ flashlightOn: runtime.flashlightOn });
     }
 
@@ -113,6 +117,16 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
       }
 
       runtime.elapsed += STEP;
+      if (runtime.mode === "underground" && runtime.flashlightOn) {
+        runtime.battery = Math.max(0, runtime.battery - FLASHLIGHT_DRAIN * STEP);
+        if (runtime.battery <= 0) {
+          runtime.flashlightOn = false;
+          useHud.setState({ flashlightOn: false, battery: 0 });
+          stalkerWhisper();
+        } else if (Math.floor(runtime.battery) !== Math.floor(runtime.battery + FLASHLIGHT_DRAIN * STEP)) {
+          useHud.setState({ battery: runtime.battery });
+        }
+      }
       const minute = Math.floor(runtime.elapsed / 60);
       if (minute > 0 && Math.abs(runtime.elapsed - minute * 60) < STEP * 0.6) {
         runtime.exitPulseT = 3.2;
@@ -121,6 +135,47 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
       if (runtime.hintT > 0) runtime.hintT = Math.max(0, runtime.hintT - STEP);
       if (runtime.hintCd > 0) runtime.hintCd = Math.max(0, runtime.hintCd - STEP);
       if (runtime.scareT > 0) runtime.scareT = Math.max(0, runtime.scareT - STEP);
+
+      if (runtime.mode === "underground" && runtime.stalkerState !== "dormant") {
+        runtime.stalkerT = Math.max(0, runtime.stalkerT - STEP);
+        if (runtime.stalkerState === "peeking") {
+          const backX = Math.sin(runtime.yaw);
+          const backZ = Math.cos(runtime.yaw);
+          const toStalkerX = runtime.stalkerX - runtime.x;
+          const toStalkerZ = runtime.stalkerZ - runtime.z;
+          const lookedBack = (backX * toStalkerX + backZ * toStalkerZ) / (Math.hypot(toStalkerX, toStalkerZ) || 1) > 0.72 && Math.abs(actions.lookX) > 0.01;
+          if (lookedBack) runtime.stalkerT = 0;
+          if (runtime.stalkerT <= 0) {
+            if (runtime.flashlightOn) {
+              runtime.gameOverReason = lookedBack ? "looked" : "light";
+              runtime.phase = "gameover";
+              useHud.setState({ phase: "gameover", gameOverReason: runtime.gameOverReason });
+              caughtSting();
+              if (document.pointerLockElement) document.exitPointerLock();
+            } else {
+              runtime.stalkerState = "pursuing";
+              runtime.stalkerT = 999;
+              stalkerWhisper();
+            }
+          }
+        } else if (runtime.stalkerState === "pursuing") {
+          const dx = runtime.x - runtime.stalkerX;
+          const dz = runtime.z - runtime.stalkerZ;
+          const dist = Math.hypot(dx, dz);
+          if (dist > 0.01) {
+            const chaseStep = Math.min(dist, STALKER_SPEED * STEP);
+            runtime.stalkerX += (dx / dist) * chaseStep;
+            runtime.stalkerZ += (dz / dist) * chaseStep;
+          }
+          if (dist < STALKER_CATCH_DISTANCE) {
+            runtime.gameOverReason = "caught";
+            runtime.phase = "gameover";
+            useHud.setState({ phase: "gameover", gameOverReason: "caught" });
+            caughtSting();
+            if (document.pointerLockElement) document.exitPointerLock();
+          }
+        }
+      }
 
       const fx = -Math.sin(runtime.yaw);
       const fz = -Math.cos(runtime.yaw);
@@ -179,6 +234,10 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
         if (distToScare < SCARE_DISTANCE) {
           runtime.scareTriggered = true;
           runtime.scareT = SCARE_DURATION;
+          runtime.stalkerState = "peeking";
+          runtime.stalkerT = STALKER_TRIGGER_DELAY;
+          runtime.stalkerX = runtime.x + Math.sin(runtime.yaw) * 4.8;
+          runtime.stalkerZ = runtime.z + Math.cos(runtime.yaw) * 4.8;
           useHud.setState({ scareTriggered: true });
           scareSting();
         }

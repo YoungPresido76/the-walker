@@ -1,4 +1,4 @@
-import { Compass, Eye, Flashlight, Flower2, RotateCcw } from "lucide-react";
+import { Battery, Compass, Eye, Flashlight, Flower2, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { TOUCH_LOOK_SENS } from "./constants";
 import type { GameInput } from "./input";
@@ -144,6 +144,24 @@ export function WinOverlay({
   );
 }
 
+export function GameOverOverlay({ reason, onReplay }: { reason: "battery" | "light" | "caught" | "looked" | null; onReplay: () => void }) {
+  const copy = reason === "battery"
+    ? ["The light died", "The hollow kept moving in the dark."]
+    : reason === "light"
+      ? ["It saw you", "You gave it one last glimpse of yourself."]
+      : reason === "looked"
+        ? ["Don&apos;t look back", "The corridor was never empty."]
+        : ["It caught you", "Run faster next time. Do not let the footsteps catch up."];
+  return <OverlayCard>
+    <p className="text-xs font-medium tracking-[0.18em] text-red-200/70 uppercase">The Hollow</p>
+    <h2 className="font-display mt-3 text-3xl font-semibold tracking-tight text-red-100">{copy[0]}</h2>
+    <p className="mt-3 text-sm leading-relaxed text-muted">{copy[1]}</p>
+    <button type="button" onClick={onReplay} className="mt-7 flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm font-semibold text-primary-fg">
+      <RotateCcw className="size-4" strokeWidth={2} /> Walk again
+    </button>
+  </OverlayCard>;
+}
+
 export function ExploreOverlay({ onContinue }: { onContinue: () => void }) {
   return <OverlayCard>
     <p className="text-xs font-medium tracking-[0.18em] text-faint uppercase">Spirit Grove unlocked</p>
@@ -251,6 +269,7 @@ export function Hud({
   const peeks = useHud((s) => s.peeks);
   const scareTriggered = useHud((s) => s.scareTriggered);
   const flashlightOn = useHud((s) => s.flashlightOn);
+  const battery = useHud((s) => s.battery);
   const touch = useHud((s) => s.touch);
   const [mapExpanded, setMapExpanded] = useState(false);
   const mapRef = useRef<HTMLCanvasElement>(null);
@@ -313,9 +332,14 @@ export function Hud({
               <span className="text-[10px] tracking-wide text-faint uppercase">peeks</span>
             </div>
             {runtime.mode === "underground" ? (
-              <div className="flex items-center gap-1.5 rounded-md border border-amber-200/20 bg-slate-950/75 px-3 py-2">
-                <Flashlight className={`size-3.5 ${flashlightOn ? "text-amber-200" : "text-faint"}`} strokeWidth={1.75} />
-                <span className="text-[10px] tracking-wide text-muted uppercase">{flashlightOn ? "light on" : "light off"}</span>
+              <div className={`min-w-[126px] rounded-md border bg-slate-950/75 px-3 py-2 ${battery < 22 ? "border-red-300/50" : "border-amber-200/20"}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <Flashlight className={`size-3.5 ${flashlightOn ? "text-amber-200" : "text-faint"}`} strokeWidth={1.75} />
+                  <span className="text-[10px] tracking-wide text-muted uppercase">{flashlightOn ? "light on" : "light off"}</span>
+                  <Battery className="size-3.5 text-faint" strokeWidth={1.75} />
+                </div>
+                <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10"><div className={`h-full ${battery < 22 ? "bg-red-400" : "bg-amber-200"}`} style={{ width: `${battery}%` }} /></div>
+                <p className="mt-1 text-right font-mono text-[10px] text-faint">{Math.ceil(battery)}%</p>
               </div>
             ) : null}
           </div>
@@ -353,8 +377,9 @@ export function Hud({
       ) : null}
 
       {playing && runtime.mode === "underground" && scareTriggered ? (
-        <div className="pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 text-center">
-          <p className="font-display text-lg tracking-[0.28em] text-red-200/80 uppercase drop-shadow-[0_0_12px_rgba(180,42,34,0.75)]">Don&apos;t look back</p>
+        <div className={`pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 text-center ${runtime.stalkerState === "pursuing" ? "animate-pulse" : ""}`}>
+          <p className="font-display text-lg tracking-[0.28em] text-red-200/80 uppercase drop-shadow-[0_0_12px_rgba(180,42,34,0.75)]">{runtime.stalkerState === "pursuing" ? "RUN" : "Don&apos;t look back"}</p>
+          <p className="mt-2 text-[10px] tracking-[0.22em] text-red-100/55 uppercase">{runtime.stalkerState === "peeking" ? "kill the light" : runtime.stalkerState === "pursuing" ? "it is behind you" : "something is listening"}</p>
         </div>
       ) : null}
 

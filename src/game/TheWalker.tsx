@@ -5,7 +5,7 @@ import { resumeAudio, unlockAudio } from "./audio";
 import { GameInput } from "./input";
 import { generateMaze } from "./maze";
 import type { Difficulty, GameMode } from "./maze";
-import { ExploreOverlay, Hud, PauseOverlay, requestLock, TitleOverlay, WinOverlay } from "./overlays";
+import { ExploreOverlay, GameOverOverlay, Hud, PauseOverlay, requestLock, TitleOverlay, WinOverlay } from "./overlays";
 import { Player } from "./Player";
 import { createRuntime } from "./runtime";
 import { useHud } from "./store";
@@ -69,6 +69,7 @@ function HedgerowRun({
   const wonTime = useHud((s) => s.wonTime);
   const touch = useHud((s) => s.touch);
   const locked = useHud((s) => s.locked);
+  const gameOverReason = useHud((s) => s.gameOverReason);
 
   const startPlay = useCallback(() => {
     unlockAudio();
@@ -170,6 +171,7 @@ function HedgerowRun({
       {phase === "won" ? (
         <WinOverlay time={wonTime} collected={collected} total={total} onReplay={onReplay} />
       ) : null}
+      {phase === "gameover" ? <GameOverOverlay reason={gameOverReason} onReplay={onReplay} /> : null}
     </div>
   );
 }
