@@ -132,34 +132,66 @@ function Flashlight({ runtime }: { runtime: Runtime }) {
   const camera = useThree((s) => s.camera);
   const lightRef = useRef<THREE.SpotLight>(null);
   const fillRef = useRef<THREE.PointLight>(null);
+  const beamRef = useRef<THREE.Mesh>(null);
   useEffect(() => {
     const light = new THREE.SpotLight("#ffd88a", 0, 22, Math.PI / 7, 0.62, 1.35);
     const fill = new THREE.PointLight("#c5d8e8", 0, 10, 1.5);
     const target = new THREE.Object3D();
+    const beamCanvas = document.createElement("canvas");
+    beamCanvas.width = 256;
+    beamCanvas.height = 256;
+    const beamContext = beamCanvas.getContext("2d")!;
+    const beamGradient = beamContext.createRadialGradient(128, 112, 8, 128, 128, 128);
+    beamGradient.addColorStop(0, "rgba(255,220,150,0.72)");
+    beamGradient.addColorStop(0.28, "rgba(255,201,115,0.3)");
+    beamGradient.addColorStop(1, "rgba(255,180,90,0)");
+    beamContext.fillStyle = beamGradient;
+    beamContext.fillRect(0, 0, 256, 256);
+    const beamTexture = new THREE.CanvasTexture(beamCanvas);
+    const beamMaterial = new THREE.MeshBasicMaterial({
+      map: beamTexture,
+      transparent: true,
+      opacity: 0.32,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const beam = new THREE.Mesh(new THREE.PlaneGeometry(8.5, 6.2), beamMaterial);
     target.position.set(0, -0.05, -9);
     light.position.set(0.14, -0.06, -0.12);
     fill.position.set(0, 0, 0);
+    beam.position.set(0, -0.2, -4.8);
     camera.add(light);
     camera.add(fill);
     camera.add(target);
+    camera.add(beam);
     light.target = target;
     lightRef.current = light;
     fillRef.current = fill;
+    beamRef.current = beam;
     return () => {
       camera.remove(light);
       camera.remove(fill);
       camera.remove(target);
+      camera.remove(beam);
       lightRef.current = null;
       fillRef.current = null;
+      beamRef.current = null;
+      beam.geometry.dispose();
+      beamMaterial.dispose();
+      beamTexture.dispose();
     };
   }, [camera]);
   useFrame(() => {
     const light = lightRef.current;
     const fill = fillRef.current;
-    if (!light || !fill) return;
+    const beam = beamRef.current;
+    if (!light || !fill || !beam) return;
     const active = runtime.mode === "underground" && runtime.flashlightOn;
     light.intensity = active ? 22 + Math.sin(runtime.elapsed * 17) * 0.7 : 0;
     fill.intensity = active ? 8 : 0;
+    beam.visible = active;
+    beam.scale.setScalar(1 + Math.sin(runtime.elapsed * 13) * 0.018);
   });
   return null;
 }
@@ -300,7 +332,7 @@ export function World({ maze, runtime }: { maze: Maze; runtime: Runtime }) {
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[cx, 0, cz]} receiveShadow>
         <planeGeometry args={[500, 500]} />
-        <meshStandardMaterial map={underground ? stone : grass} color={underground ? "#27313a" : "#ffffff"} roughness={0.98} metalness={0} flatShading />
+        <meshStandardMaterial map={underground ? stone : grass} color={underground ? "#354553" : "#ffffff"} emissive={underground ? "#14222e" : "#000000"} emissiveIntensity={underground ? 0.7 : 0} roughness={0.98} metalness={0} flatShading />
       </mesh>
 
       <ColoredInstances items={maze.paths} receiveShadow roughness={0.96} />
