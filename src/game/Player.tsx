@@ -248,6 +248,17 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
 
       const cell = worldToCell(runtime.x, runtime.z);
       markVisited(runtime, cell.x, cell.y);
+      if (runtime.mode === "underground" && runtime.horrorT > 0) runtime.horrorT = Math.max(0, runtime.horrorT - STEP);
+      if (runtime.mode === "underground") {
+        const trigger = maze.horrorTriggers.find((candidate) => candidate.x === cell.x && candidate.y === cell.y);
+        const triggerKey = trigger ? `${trigger.kind}:${trigger.x}:${trigger.y}` : "";
+        if (trigger && !runtime.horrorSeen.has(triggerKey)) {
+          runtime.horrorSeen.add(triggerKey);
+          runtime.horrorT = 2.4;
+          runtime.horrorText = trigger.kind === "grid" ? "The floor breathed" : trigger.kind === "turn" ? "Something moved around the corner" : "The light was not yours";
+          scareSting();
+        }
+      }
       for (let i = 0; i < maze.landmarks.length; i++) {
         const landmark = maze.landmarks[i]!;
         if (Math.hypot(runtime.x - landmark.x, runtime.z - landmark.z) < 13) runtime.landmarkSeen.add(i);
@@ -258,7 +269,7 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
         if (Math.hypot(runtime.x - c.x, runtime.z - c.z) < 0.72) {
           runtime.collected.add(c.id);
           if (runtime.mode === "underground") {
-            runtime.battery = Math.min(100, runtime.battery + 3);
+            runtime.battery = Math.min(100, runtime.battery + 5);
             useHud.setState({ battery: runtime.battery });
           }
           chime();

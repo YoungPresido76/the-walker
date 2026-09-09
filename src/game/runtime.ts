@@ -30,6 +30,9 @@ export type Runtime = {
   stalkerX: number;
   stalkerZ: number;
   gameOverReason: "battery" | "light" | "caught" | "looked" | null;
+  horrorSeen: Set<string>;
+  horrorText: string;
+  horrorT: number;
   phase: Phase;
   locked: boolean;
   wonTime: number;
@@ -81,6 +84,9 @@ export function createRuntime(maze: Maze, input: GameInput): Runtime {
     stalkerX: maze.startWorld.x,
     stalkerZ: maze.startWorld.z - 6,
     gameOverReason: null,
+    horrorSeen: new Set(),
+    horrorText: "",
+    horrorT: 0,
     phase: "title",
     locked: false,
     wonTime: 0,

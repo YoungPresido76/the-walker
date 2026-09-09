@@ -383,6 +383,12 @@ export function Hud({
         </div>
       ) : null}
 
+      {playing && runtime.mode === "underground" && runtime.horrorT > 0 ? (
+        <div className="pointer-events-none absolute top-[38%] left-1/2 z-10 -translate-x-1/2 text-center">
+          <p className="font-display text-base tracking-[0.22em] text-red-100/75 uppercase drop-shadow-[0_0_14px_rgba(180,42,34,0.8)]">{runtime.horrorText}</p>
+        </div>
+      ) : null}
+
       {playing ? (
         <div className="pointer-events-none absolute top-1/2 left-1/2 z-10 size-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-fg/70" />
       ) : null}

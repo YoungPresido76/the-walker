@@ -56,6 +56,8 @@ export type Collectible = {
   z: number;
 };
 
+export type HorrorTrigger = { x: number; y: number; kind: "grid" | "turn" | "relic" };
+
 export type Maze = {
   width: number;
   height: number;
@@ -69,6 +71,7 @@ export type Maze = {
   scareWorld: { x: number; z: number };
   exitTrigger: Aabb;
   collectibles: Collectible[];
+  horrorTriggers: HorrorTrigger[];
   wallAabbs: Aabb[];
   walls: Instance[];
   caps: Instance[];
@@ -227,7 +230,7 @@ export function generateMaze(
     stack.push({ x: pick.x, y: pick.y });
   }
 
-  const branchFactor = difficulty === "meadow" ? 0.14 : difficulty === "grove" ? 0.2 : 0.27;
+  const branchFactor = mode === "underground" ? 0.035 : difficulty === "meadow" ? 0.14 : difficulty === "grove" ? 0.2 : 0.27;
   const extras = Math.floor(width * height * branchFactor);
   let added = 0;
   let guard = 0;
@@ -371,6 +374,7 @@ export function generateMaze(
     scareWorld,
     exitTrigger,
     collectibles: [],
+    horrorTriggers: [],
     wallAabbs,
     walls,
     caps,
@@ -406,6 +410,24 @@ export function generateMaze(
       z: c.z + rng.range(-0.45, 0.45),
     };
   });
+
+  if (mode === "underground") {
+    const candidates: HorrorTrigger[] = [];
+    const isTurn = (cell: Cell) => {
+      const open = DIRS.filter((dir) => !cell[dir]);
+      return open.length === 2 && OPP[open[0]!] !== open[1];
+    };
+    const pushCandidate = (x: number, y: number, kind: HorrorTrigger["kind"]) => {
+      if ((x === start.x && y === start.y) || (x === exit.x && y === exit.y)) return;
+      if (x === scareCell.x && y === scareCell.y) return;
+      if (!candidates.some((trigger) => trigger.x === x && trigger.y === y)) candidates.push({ x, y, kind });
+    };
+    for (const p of deadEnds) pushCandidate(p.x, p.y, "grid");
+    for (const p of others) if (isTurn(cells[p.y]![p.x]!)) pushCandidate(p.x, p.y, "turn");
+    for (const collectible of maze.collectibles) pushCandidate(collectible.cellX, collectible.cellY, "relic");
+    rng.shuffle(candidates);
+    maze.horrorTriggers = candidates.slice(0, difficulty === "wildwood" ? 10 : difficulty === "grove" ? 8 : 6);
+  }
 
   const cx = ((width - 1) * CELL_SIZE) / 2;
   const cz = ((height - 1) * CELL_SIZE) / 2;

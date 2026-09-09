@@ -2,7 +2,7 @@
 
 ## Implemented scope
 
-The game now has a visible peek counter, a dark expanded horizon instead of a bright finite-looking boundary, an optional underground mode, a battery-limited first-person flashlight, a deterministic rune-marked scare trigger, a corridor stalker with peek/pursuit behavior, and generated original cave/rune assets. Existing garden and spirit modes remain available.
+The game now has a visible peek counter, a dark expanded horizon instead of a bright finite-looking boundary, a denser underground maze with closed turns and dead ends, a battery-limited first-person flashlight, a deterministic rune-marked scare trigger, randomized floor/turn/relic horror triggers, a corridor stalker with peek/pursuit behavior, and generated original cave/rune assets. Existing garden and spirit modes remain available.
 
 ## Verification criteria
 
@@ -12,7 +12,8 @@ The game now has a visible peek counter, a dark expanded horizon instead of a br
 - The flashlight can be toggled with `L` or the touch Light button.
 - Approaching the seeded scare location triggers a one-shot silhouette, red eyes, camera shake, audio sting, and `Don't look back` feedback.
 - The underground flashlight drains from 100% to 5% over 3 minutes, then drains the final 5% more slowly over approximately 1 minute, for about 4 minutes total before shutting off at 0%.
-- At 3% battery or below, the flashlight automatically flickers on and off because of the low charge. Each underground collectible restores 3%, capped at 100%.
+- At 3% battery or below, the flashlight automatically flickers on and off because of the low charge. Each underground collectible restores 5%, capped at 100%.
+- Underground uses fewer branch openings to create tighter corridors, more closed turns, and randomized dead ends. Entering selected floor-grid cells, turning cells, or relic cells can show a one-shot horror message and sound cue per run.
 - The stalker appears behind the player after the scare warning. Leaving the flashlight on during its peek causes a light-based game over; switching it off starts a chase, and sprinting can outrun it.
 - Getting caught during pursuit produces a game-over overlay and a replay path without reloading the page.
 - The existing maze exit, collectibles, minimap, pointer lock, mobile joystick, and replay behavior remain functional.
