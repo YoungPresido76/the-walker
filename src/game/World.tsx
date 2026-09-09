@@ -130,10 +130,16 @@ function Weather() {
 
 function Flashlight({ runtime }: { runtime: Runtime }) {
   const camera = useThree((s) => s.camera);
+  const scene = useThree((s) => s.scene);
   const lightRef = useRef<THREE.SpotLight>(null);
   const fillRef = useRef<THREE.PointLight>(null);
   const beamRef = useRef<THREE.Mesh>(null);
   useEffect(() => {
+    // The default R3F camera lives outside the scene graph. Anything parented
+    // to it (our flashlight rig below) is invisible to the renderer's light
+    // and object traversal unless the camera itself is added to the scene.
+    const prevParent = camera.parent;
+    scene.add(camera);
     const light = new THREE.SpotLight("#ffd88a", 0, 22, Math.PI / 7, 0.62, 1.35);
     const fill = new THREE.PointLight("#c5d8e8", 0, 10, 1.5);
     const target = new THREE.Object3D();
@@ -174,6 +180,8 @@ function Flashlight({ runtime }: { runtime: Runtime }) {
       camera.remove(fill);
       camera.remove(target);
       camera.remove(beam);
+      if (prevParent) prevParent.add(camera);
+      else scene.remove(camera);
       lightRef.current = null;
       fillRef.current = null;
       beamRef.current = null;
@@ -181,7 +189,7 @@ function Flashlight({ runtime }: { runtime: Runtime }) {
       beamMaterial.dispose();
       beamTexture.dispose();
     };
-  }, [camera]);
+  }, [camera, scene]);
   useFrame(() => {
     const light = lightRef.current;
     const fill = fillRef.current;
