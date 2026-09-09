@@ -8,6 +8,8 @@ import {
 import { createRng, mixColor, type Rng } from "./rng";
 
 export type Dir = "n" | "e" | "s" | "w";
+export type Difficulty = "meadow" | "grove" | "wildwood";
+export type GameMode = "garden" | "spirit";
 
 export const DIRS: Dir[] = ["n", "e", "s", "w"];
 export const OPP: Record<Dir, Dir> = { n: "s", e: "w", s: "n", w: "e" };
@@ -70,6 +72,8 @@ export type Maze = {
   clumps: Instance[];
   paths: Instance[];
   trees: { x: number; z: number; scale: number; rot: number; hue: number }[];
+  difficulty: Difficulty;
+  mode: GameMode;
 };
 
 export function cellCenter(x: number, y: number): { x: number; z: number } {
@@ -168,7 +172,17 @@ function hedgeColor(rng: Rng): number {
   return mixColor(0x3d6e44, 0x4a7c4e, rng.next());
 }
 
-export function generateMaze(seed: number, width = MAZE_W, height = MAZE_H): Maze {
+export function generateMaze(
+  seed: number,
+  difficulty: Difficulty = "meadow",
+  mode: GameMode = "garden",
+): Maze {
+  const sizes: Record<Difficulty, readonly [number, number]> = {
+    meadow: [MAZE_W, MAZE_H],
+    grove: [21, 17],
+    wildwood: [27, 21],
+  };
+  const [width, height] = sizes[difficulty];
   const rng = createRng(seed);
   const cells: Cell[][] = [];
   for (let y = 0; y < height; y++) {
@@ -209,7 +223,8 @@ export function generateMaze(seed: number, width = MAZE_W, height = MAZE_H): Maz
     stack.push({ x: pick.x, y: pick.y });
   }
 
-  const extras = Math.floor(width * height * 0.11);
+  const branchFactor = difficulty === "meadow" ? 0.14 : difficulty === "grove" ? 0.2 : 0.27;
+  const extras = Math.floor(width * height * branchFactor);
   let added = 0;
   let guard = 0;
   while (added < extras && guard++ < 5000) {
@@ -355,6 +370,8 @@ export function generateMaze(seed: number, width = MAZE_W, height = MAZE_H): Maz
     clumps,
     paths,
     trees: [],
+    difficulty,
+    mode,
   };
 
   const deadEnds: { x: number; y: number }[] = [];
@@ -369,7 +386,7 @@ export function generateMaze(seed: number, width = MAZE_W, height = MAZE_H): Maz
   }
   rng.shuffle(deadEnds);
   rng.shuffle(others);
-  const want = 8;
+  const want = mode === "spirit" ? (difficulty === "wildwood" ? 12 : 9) : difficulty === "wildwood" ? 14 : 8;
   const picks = [...deadEnds, ...others].slice(0, want);
   maze.collectibles = picks.map((p, id) => {
     const c = cellCenter(p.x, p.y);
@@ -399,7 +416,7 @@ export function generateMaze(seed: number, width = MAZE_W, height = MAZE_H): Maz
 
   const path = bfsPath(maze, start, exit);
   if (path.length < 2) {
-    return generateMaze((seed + 17) >>> 0, width, height);
+    return generateMaze((seed + 17) >>> 0, difficulty, mode);
   }
 
   return maze;

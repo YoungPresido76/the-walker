@@ -96,13 +96,19 @@ function Trees({ maze }: { maze: Maze }) {
   );
 }
 
-function Gate({ maze }: { maze: Maze }) {
+function Gate({ maze, runtime }: { maze: Maze; runtime: Runtime }) {
+  const group = useRef<THREE.Group>(null);
+  useFrame(() => {
+    if (!group.current) return;
+    group.current.visible = runtime.exitPulseT > 0;
+    group.current.scale.setScalar(1 + Math.sin(runtime.elapsed * 10) * 0.025);
+  });
   const { x, z } = maze.archWorld;
   const post = 0.22;
   const h = 3.15;
   const span = 1.55;
   return (
-    <group position={[x, 0, z]}>
+    <group ref={group} position={[x, 0, z]} visible={false}>
       <mesh position={[-span, h / 2, 0]} castShadow>
         <boxGeometry args={[post, h, post]} />
         <meshStandardMaterial color={WORLD.wood} roughness={0.92} />
@@ -246,7 +252,7 @@ export function World({ maze, runtime }: { maze: Maze; runtime: Runtime }) {
       <ColoredInstances items={maze.clumps} shape="ico" roughness={0.84} flatShading />
 
       <Trees maze={maze} />
-      <Gate maze={maze} />
+      <Gate maze={maze} runtime={runtime} />
       <Orbs maze={maze} runtime={runtime} />
       <HintArrow runtime={runtime} />
 

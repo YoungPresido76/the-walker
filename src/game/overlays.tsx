@@ -4,6 +4,7 @@ import { TOUCH_LOOK_SENS } from "./constants";
 import type { GameInput } from "./input";
 import type { Runtime } from "./runtime";
 import { formatTime, useHud } from "./store";
+import type { Difficulty, GameMode } from "./maze";
 
 export function requestLock(el: HTMLElement | null) {
   if (!el) return;
@@ -32,7 +33,19 @@ function OverlayCard({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function TitleOverlay({ onEnter }: { onEnter: () => void }) {
+export function TitleOverlay({
+  onEnter,
+  difficulty,
+  mode,
+  onDifficulty,
+  onMode,
+}: {
+  onEnter: () => void;
+  difficulty: Difficulty;
+  mode: GameMode;
+  onDifficulty: (difficulty: Difficulty) => void;
+  onMode: (mode: GameMode) => void;
+}) {
   return (
     <OverlayCard>
       <p className="text-xs font-medium tracking-[0.18em] text-faint uppercase">Garden maze</p>
@@ -40,8 +53,24 @@ export function TitleOverlay({ onEnter }: { onEnter: () => void }) {
         The Walker
       </h1>
       <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted">
-        Tall hedges, narrow gravel, a gate somewhere ahead. Walk it. Don't trust the last turn.
+        {mode === "spirit"
+          ? "Awaken the hidden grove shrines, gather their light, and find the gate when the garden reveals it."
+          : "Tall hedges, narrow gravel, a gate somewhere ahead. Walk it. Don't trust the last turn."}
       </p>
+      <div className="mt-5 grid grid-cols-3 gap-2">
+        {(["meadow", "grove", "wildwood"] as Difficulty[]).map((level) => (
+          <button key={level} type="button" onClick={() => onDifficulty(level)} className={`rounded-md border px-2 py-2 text-xs capitalize ${difficulty === level ? "border-primary bg-primary text-primary-fg" : "border-border bg-surface-2 text-muted"}`}>
+            {level}
+          </button>
+        ))}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {(["garden", "spirit"] as GameMode[]).map((choice) => (
+          <button key={choice} type="button" onClick={() => onMode(choice)} className={`rounded-md border px-2 py-2 text-xs capitalize ${mode === choice ? "border-accent bg-accent/15 text-fg" : "border-border bg-surface-2 text-muted"}`}>
+            {choice === "spirit" ? "Spirit Grove" : "Garden Maze"}
+          </button>
+        ))}
+      </div>
       <button
         type="button"
         onClick={onEnter}
@@ -246,6 +275,10 @@ export function Hud({
             <span className="sr-only">Tap to {mapExpanded ? "close" : "open"} full map</span>
           </button>
           <div className="flex flex-col items-end gap-2">
+            <div className="rounded-md border border-border bg-surface/80 px-3 py-1.5 text-right">
+              <p className="text-[10px] tracking-wide text-faint uppercase">{runtime.mode === "spirit" ? "Spirit Grove" : "Garden Maze"}</p>
+              <p className="text-[10px] capitalize text-muted">{runtime.difficulty}</p>
+            </div>
             <div className="rounded-md border border-border bg-surface/80 px-3 py-2">
               <p className="text-[10px] tracking-wide text-faint uppercase">Time</p>
               <span ref={timeRef} className="font-mono text-sm tabular-nums text-fg">

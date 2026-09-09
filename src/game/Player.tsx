@@ -104,6 +104,11 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
       }
 
       runtime.elapsed += STEP;
+      const minute = Math.floor(runtime.elapsed / 60);
+      if (minute > 0 && Math.abs(runtime.elapsed - minute * 60) < STEP * 0.6) {
+        runtime.exitPulseT = 3.2;
+      }
+      if (runtime.exitPulseT > 0) runtime.exitPulseT = Math.max(0, runtime.exitPulseT - STEP);
       if (runtime.hintT > 0) runtime.hintT = Math.max(0, runtime.hintT - STEP);
       if (runtime.hintCd > 0) runtime.hintCd = Math.max(0, runtime.hintCd - STEP);
 
@@ -171,7 +176,8 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
         }
       }
 
-      if (inAabb(runtime.x, runtime.z, maze.exitTrigger)) {
+      const spiritReady = runtime.mode !== "spirit" || runtime.collected.size >= maze.collectibles.length;
+      if (spiritReady && inAabb(runtime.x, runtime.z, maze.exitTrigger)) {
         runtime.phase = "won";
         runtime.wonTime = runtime.elapsed;
         runtime.vx = 0;

@@ -1,6 +1,6 @@
 import { EYE_HEIGHT, HINT_COOLDOWN, HINT_DURATION } from "./constants";
 import type { GameInput } from "./input";
-import { bfsPath, cellCenter, type Maze } from "./maze";
+import { bfsPath, cellCenter, type GameMode, type Maze, type Difficulty } from "./maze";
 import type { Phase } from "./store";
 
 export type Runtime = {
@@ -29,6 +29,9 @@ export type Runtime = {
   collectEl: HTMLElement | null;
   mapEl: HTMLCanvasElement | null;
   mapExpanded: boolean;
+  difficulty: Difficulty;
+  mode: GameMode;
+  exitPulseT: number;
 };
 
 export function createRuntime(maze: Maze, input: GameInput): Runtime {
@@ -66,6 +69,9 @@ export function createRuntime(maze: Maze, input: GameInput): Runtime {
     collectEl: null,
     mapEl: null,
     mapExpanded: false,
+    difficulty: maze.difficulty,
+    mode: maze.mode,
+    exitPulseT: 0,
   };
 }
 

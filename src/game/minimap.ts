@@ -83,11 +83,13 @@ export function drawMinimap(rt: Runtime) {
 
   // Keep the destination visible even before the player has explored its cell;
   // the connecting walls and route remain hidden until discovered.
-  const gate = worldToMap(maze.archWorld.x, maze.archWorld.z);
-  ctx.fillStyle = GATE;
-  ctx.beginPath();
-  ctx.arc(gate.x, gate.y, expanded ? 5 : 4, 0, Math.PI * 2);
-  ctx.fill();
+  if (rt.exitPulseT > 0) {
+    const gate = worldToMap(maze.archWorld.x, maze.archWorld.z);
+    ctx.fillStyle = GATE;
+    ctx.beginPath();
+    ctx.arc(gate.x, gate.y, expanded ? 5 : 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   for (const orb of maze.collectibles) {
     if (rt.collected.has(orb.id)) continue;

@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { resumeAudio, unlockAudio } from "./audio";
 import { GameInput } from "./input";
 import { generateMaze } from "./maze";
+import type { Difficulty, GameMode } from "./maze";
 import { Hud, PauseOverlay, requestLock, TitleOverlay, WinOverlay } from "./overlays";
 import { Player } from "./Player";
 import { createRuntime } from "./runtime";
@@ -22,11 +23,17 @@ function newSeed() {
 export function TheWalker() {
   const [seed, setSeed] = useState(newSeed);
   const [autostart, setAutostart] = useState(false);
+  const [difficulty, setDifficulty] = useState<Difficulty>("meadow");
+  const [mode, setMode] = useState<GameMode>("garden");
   return (
     <HedgerowRun
       key={seed}
       seed={seed}
       autostart={autostart}
+      difficulty={difficulty}
+      mode={mode}
+      onDifficulty={setDifficulty}
+      onMode={setMode}
       onReplay={() => {
         setAutostart(true);
         setSeed(newSeed());
@@ -38,13 +45,21 @@ export function TheWalker() {
 function HedgerowRun({
   seed,
   autostart,
+  difficulty,
+  mode,
+  onDifficulty,
+  onMode,
   onReplay,
 }: {
   seed: number;
   autostart: boolean;
+  difficulty: Difficulty;
+  mode: GameMode;
+  onDifficulty: (difficulty: Difficulty) => void;
+  onMode: (mode: GameMode) => void;
   onReplay: () => void;
 }) {
-  const maze = useMemo(() => generateMaze(seed), [seed]);
+  const maze = useMemo(() => generateMaze(seed, difficulty, mode), [seed, difficulty, mode]);
   const input = useMemo(() => new GameInput(), []);
   const runtime = useMemo(() => createRuntime(maze, input), [maze, input]);
   const canvasEl = useRef<HTMLElement | null>(null);
@@ -144,7 +159,7 @@ function HedgerowRun({
 
       <Hud runtime={runtime} onHint={onHint} />
 
-      {phase === "title" ? <TitleOverlay onEnter={startPlay} /> : null}
+      {phase === "title" ? <TitleOverlay onEnter={startPlay} difficulty={difficulty} mode={mode} onDifficulty={onDifficulty} onMode={onMode} /> : null}
       {phase === "paused" && !locked && !touch ? <PauseOverlay onResume={startPlay} /> : null}
       {phase === "won" ? (
         <WinOverlay time={wonTime} collected={collected} total={total} onReplay={onReplay} />
