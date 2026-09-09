@@ -3,8 +3,7 @@ import type { Maze } from "./maze";
 import type { Runtime } from "./runtime";
 
 const BG = "#121c16";
-const PATH = "#c2b392";
-const HEDGE = "#2a4a32";
+const HEDGE = "#d7e0d4";
 const SELF = "#efe6d4";
 const HINT = "#d7e0d4";
 const ORB = "#f3ead8";
@@ -37,7 +36,7 @@ export function drawMinimap(rt: Runtime) {
 
   ctx.translate(r, r);
   const expanded = rt.mapExpanded;
-  if (!expanded) ctx.rotate(-rt.yaw);
+  if (!expanded) ctx.rotate(rt.yaw);
 
   const scale = expanded
     ? Math.min((w - 18) / (maze.width * CELL_SIZE), (w - 18) / (maze.height * CELL_SIZE))
@@ -59,16 +58,27 @@ export function drawMinimap(rt: Runtime) {
       const p = worldToMap(cx, cz);
       if (Math.hypot(p.x, p.y) > visR + CELL_SIZE * scale) continue;
       const half = (CELL_SIZE * scale) / 2;
-      ctx.fillStyle = PATH;
-      ctx.globalAlpha = 0.88;
-      ctx.fillRect(p.x - half + 1, p.y - half + 1, half * 2 - 2, half * 2 - 2);
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = HEDGE;
-      const t = 3.2;
-      if (c.n) ctx.fillRect(p.x - half, p.y - half - t / 2, half * 2, t);
-      if (c.s) ctx.fillRect(p.x - half, p.y + half - t / 2, half * 2, t);
-      if (c.w) ctx.fillRect(p.x - half - t / 2, p.y - half, t, half * 2);
-      if (c.e) ctx.fillRect(p.x + half - t / 2, p.y - half, t, half * 2);
+      ctx.strokeStyle = HEDGE;
+      ctx.lineWidth = expanded ? 2.2 : 2.8;
+      ctx.lineCap = "square";
+      ctx.beginPath();
+      if (c.n) {
+        ctx.moveTo(p.x - half, p.y - half);
+        ctx.lineTo(p.x + half, p.y - half);
+      }
+      if (c.s) {
+        ctx.moveTo(p.x - half, p.y + half);
+        ctx.lineTo(p.x + half, p.y + half);
+      }
+      if (c.w) {
+        ctx.moveTo(p.x - half, p.y - half);
+        ctx.lineTo(p.x - half, p.y + half);
+      }
+      if (c.e) {
+        ctx.moveTo(p.x + half, p.y - half);
+        ctx.lineTo(p.x + half, p.y + half);
+      }
+      ctx.stroke();
 
       if (x === maze.exit.x && y === maze.exit.y) {
         const g = worldToMap(maze.archWorld.x, maze.archWorld.z);
@@ -118,7 +128,7 @@ export function drawMinimap(rt: Runtime) {
     ctx.globalAlpha = 1;
   }
 
-  if (!expanded) ctx.rotate(rt.yaw);
+  if (!expanded) ctx.rotate(-rt.yaw);
   ctx.fillStyle = SELF;
   ctx.beginPath();
   ctx.moveTo(0, -7);
