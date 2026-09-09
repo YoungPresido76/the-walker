@@ -1,8 +1,12 @@
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let sfx: GainNode | null = null;
+let musicBus: GainNode | null = null;
 let noise: AudioBuffer | null = null;
 let lastFoot = 0;
+let musicTimer: number | null = null;
+let musicStarted = false;
+let musicSources: AudioScheduledSourceNode[] = [];
 
 function ac(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -11,11 +15,15 @@ function ac(): AudioContext | null {
     ctx = new Ctor({ latencyHint: "interactive" });
     master = ctx.createGain();
     sfx = ctx.createGain();
-    master.gain.value = 0.7;
-    sfx.gain.value = 0.85;
+    musicBus = ctx.createGain();
+    master.gain.value = 0.72;
+    sfx.gain.value = 0.82;
+    musicBus.gain.value = 0.16;
     sfx.connect(master);
+    musicBus.connect(master);
     master.connect(ctx.destination);
-    const n = ctx.createBuffer(1, ctx.sampleRate * 0.35, ctx.sampleRate);
+
+    const n = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
     const d = n.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     noise = n;
@@ -27,19 +35,119 @@ export function unlockAudio() {
   const c = ac();
   if (!c) return;
   if (c.state === "suspended") void c.resume();
+  startMusic();
 }
 
 export function resumeAudio() {
   if (ctx && ctx.state === "suspended") void ctx.resume();
 }
 
-function envGain(c: AudioContext, t: number, a: number, d: number, peak = 1): GainNode {
+function envGain(c: AudioContext, t: number, a: number, d: number, peak = 1, destination = sfx): GainNode {
   const g = c.createGain();
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(peak, t + a);
   g.gain.exponentialRampToValueAtTime(0.0001, t + a + d);
-  g.connect(sfx!);
+  g.connect(destination!);
   return g;
+}
+
+function note(freq: number, delay: number, duration: number, volume: number, type: OscillatorType = "sine") {
+  const c = ac();
+  if (!c || !musicBus) return;
+  const t = c.currentTime + delay;
+  const o = c.createOscillator();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t);
+  o.detune.setValueAtTime((Math.random() - 0.5) * 5, t);
+  const g = envGain(c, t, 0.06, duration, volume, musicBus);
+  o.connect(g);
+  o.start(t);
+  o.stop(t + duration + 0.12);
+  musicSources.push(o);
+  o.onended = () => {
+    o.disconnect();
+    g.disconnect();
+    musicSources = musicSources.filter((source) => source !== o);
+  };
+}
+
+function scheduleMusicBar() {
+  if (!musicStarted) return;
+  const melody = [196, 233, 261, 311, 349, 311, 261, 233];
+  melody.forEach((freq, i) => {
+    note(freq, i * 0.78, 1.15, 0.16, i % 3 === 0 ? "triangle" : "sine");
+    if (i === 0 || i === 4) note(freq / 2, i * 0.78, 1.4, 0.1, "sine");
+  });
+  musicTimer = window.setTimeout(scheduleMusicBar, melody.length * 780);
+}
+
+export function startMusic() {
+  const c = ac();
+  if (!c || !musicBus || musicStarted) return;
+  musicStarted = true;
+  const now = c.currentTime;
+  const pad = c.createOscillator();
+  const pad2 = c.createOscillator();
+  const padFilter = c.createBiquadFilter();
+  const padGain = c.createGain();
+  pad.type = "sine";
+  pad2.type = "triangle";
+  pad.frequency.value = 98;
+  pad2.frequency.value = 147;
+  pad.detune.value = -5;
+  pad2.detune.value = 7;
+  padFilter.type = "lowpass";
+  padFilter.frequency.value = 620;
+  padGain.gain.value = 0.055;
+  pad.connect(padFilter);
+  pad2.connect(padFilter);
+  padFilter.connect(padGain);
+  padGain.connect(musicBus);
+  pad.start(now);
+  pad2.start(now);
+  musicSources.push(pad, pad2);
+
+  if (noise) {
+    const wind = c.createBufferSource();
+    const windFilter = c.createBiquadFilter();
+    const windGain = c.createGain();
+    wind.buffer = noise;
+    wind.loop = true;
+    wind.playbackRate.value = 0.22;
+    windFilter.type = "bandpass";
+    windFilter.frequency.value = 520;
+    windFilter.Q.value = 0.35;
+    windGain.gain.value = 0.018;
+    wind.connect(windFilter);
+    windFilter.connect(windGain);
+    windGain.connect(musicBus);
+    wind.start(now);
+    musicSources.push(wind);
+  }
+  scheduleMusicBar();
+}
+
+export function stopMusic() {
+  if (!ctx || !musicStarted) return;
+  musicStarted = false;
+  if (musicTimer !== null) {
+    window.clearTimeout(musicTimer);
+    musicTimer = null;
+  }
+  const sources = [...musicSources];
+  musicSources = [];
+  for (const source of sources) {
+    try {
+      source.stop(ctx.currentTime + 0.05);
+    } catch {
+      // Already stopped.
+    }
+    try {
+      source.disconnect();
+    } catch {
+      // Already disconnected.
+    }
+  }
 }
 
 export function footstep(strength = 1) {
@@ -91,11 +199,12 @@ export function chime() {
   for (const [freq, delay, dur] of [
     [784, 0, 0.28],
     [1175, 0.05, 0.32],
+    [1568, 0.1, 0.42],
   ] as const) {
     const o = c.createOscillator();
     o.type = "sine";
     o.frequency.value = freq;
-    const g = envGain(c, t + delay, 0.01, dur, 0.16);
+    const g = envGain(c, t + delay, 0.01, dur, 0.14);
     o.connect(g);
     o.start(t + delay);
     o.stop(t + delay + dur + 0.02);
@@ -121,6 +230,7 @@ export function peekTone() {
 }
 
 export function winFanfare() {
+  stopMusic();
   const c = ac();
   if (!c || !sfx) return;
   const t = c.currentTime;

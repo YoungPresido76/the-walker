@@ -12,6 +12,8 @@ A first-person low-poly garden hedge maze built with React, React Three Fiber, a
 
 Every run procedurally generates a new solvable maze. Explore the narrow hedge corridors, collect glowing flowers, and find the exit gate.
 
+The game includes procedural gravel footsteps, hedge rustles, collectible chimes, hint and victory cues, plus a quiet looping ambient garden score. Audio starts after pressing **Enter the maze**, following browser autoplay rules.
+
 ## Development
 
 ```bash
