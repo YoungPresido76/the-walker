@@ -7,6 +7,9 @@ let lastFoot = 0;
 let musicTimer: number | null = null;
 let musicStarted = false;
 let musicSources: AudioScheduledSourceNode[] = [];
+let ambientTimer: number | null = null;
+let ambientSpirit = false;
+let ambientRiver = false;
 
 function ac(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -36,6 +39,7 @@ export function unlockAudio() {
   if (!c) return;
   if (c.state === "suspended") void c.resume();
   startMusic();
+  startAmbient();
 }
 
 export function resumeAudio() {
@@ -149,6 +153,33 @@ export function stopMusic() {
     }
   }
 }
+
+function noiseBurst(filterType: BiquadFilterType, frequency: number, duration: number, volume: number, rate = 1) {
+  const c = ac();
+  if (!c || !noise || !sfx) return;
+  const src = c.createBufferSource(); const filter = c.createBiquadFilter();
+  const g = envGain(c, c.currentTime, 0.04, duration, volume);
+  src.buffer = noise; src.playbackRate.value = rate; filter.type = filterType; filter.frequency.value = frequency; filter.Q.value = 0.5;
+  src.connect(filter); filter.connect(g); src.start(); src.stop(c.currentTime + duration + 0.05);
+}
+
+function cricket() {
+  const c = ac(); if (!c || !sfx) return; const t = c.currentTime;
+  for (let i = 0; i < 3; i++) { const o = c.createOscillator(); o.type = "sine"; o.frequency.value = 3900 + Math.random() * 500; const g = envGain(c, t + i * 0.07, 0.004, 0.045, 0.035); o.connect(g); o.start(t + i * 0.07); o.stop(t + i * 0.07 + 0.06); }
+}
+
+function bird() {
+  const c = ac(); if (!c || !sfx) return; const t = c.currentTime; const o = c.createOscillator(); o.type = "sine";
+  o.frequency.setValueAtTime(900 + Math.random() * 260, t); o.frequency.exponentialRampToValueAtTime(1500 + Math.random() * 500, t + 0.18);
+  const g = envGain(c, t, 0.015, 0.24, 0.07); o.connect(g); o.start(t); o.stop(t + 0.3);
+}
+
+export function startAmbient() {
+  if (ambientTimer !== null) return;
+  ambientTimer = window.setInterval(() => { noiseBurst("lowpass", ambientRiver ? 520 : 760, ambientRiver ? 1.8 : 1.1, ambientRiver ? 0.06 : 0.028, ambientRiver ? 0.7 : 0.38); if (Math.random() < 0.72) cricket(); if (ambientSpirit && Math.random() < 0.3) bird(); if (ambientSpirit && Math.random() < 0.12) noiseBurst("bandpass", 180, 0.35, 0.045, 0.8); }, 1700);
+}
+
+export function setAmbientScene(spirit: boolean, river: boolean) { ambientSpirit = spirit; ambientRiver = river; }
 
 export function footstep(strength = 1) {
   const c = ac();

@@ -1,7 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect } from "react";
 import type * as THREE from "three";
-import { chime, footstep, peekTone, rustle, winFanfare } from "./audio";
+import { chime, footstep, peekTone, rustle, setAmbientScene, winFanfare } from "./audio";
 import { collideCircle, wallsNear } from "./collision";
 import {
   ACCEL,
@@ -229,6 +229,8 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
         runtime.hintEl.textContent = "Peek";
       }
     }
+    const nearRiver = maze.landmarks.some((landmark) => landmark.kind === "river" && Math.hypot(runtime.x - landmark.x, runtime.z - landmark.z) < 18);
+    setAmbientScene(runtime.mode === "spirit" && runtime.phase === "explore", nearRiver);
     drawMinimap(runtime);
     gl.setClearColor(WORLD.sky, 1);
   });
