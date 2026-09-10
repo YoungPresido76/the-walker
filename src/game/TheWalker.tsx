@@ -169,7 +169,7 @@ function HedgerowRun({
       {phase === "paused" && !locked && !touch ? <PauseOverlay onResume={startPlay} /> : null}
       {phase === "explore" ? <ExploreOverlay onContinue={startPlay} /> : null}
       {phase === "won" ? (
-        <WinOverlay time={wonTime} collected={collected} total={total} onReplay={onReplay} />
+        <WinOverlay time={wonTime} collected={collected} total={total} mode={mode} onReplay={onReplay} />
       ) : null}
       {phase === "gameover" ? <GameOverOverlay reason={gameOverReason} onReplay={onReplay} /> : null}
     </div>

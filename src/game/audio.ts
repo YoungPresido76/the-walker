@@ -295,6 +295,46 @@ export function caughtSting() {
   noiseBurst("highpass", 1600, 0.5, 0.22, 1.8);
 }
 
+let speechReady = false;
+let cachedVoice: SpeechSynthesisVoice | null | undefined;
+
+function pickVoice(): SpeechSynthesisVoice | null {
+  if (cachedVoice !== undefined) return cachedVoice;
+  const synth = window.speechSynthesis;
+  const voices = synth.getVoices();
+  if (!voices.length) return null;
+  const deep = voices.find((v) => /male|daniel|david|fred|george|guy|alex/i.test(v.name));
+  cachedVoice = deep ?? voices[0] ?? null;
+  return cachedVoice;
+}
+
+// Speaks a short line in a low, slowed-down voice using the browser's speech
+// synthesis, so the stalker has an actual voice instead of only stingers and
+// text. Silently no-ops where speech synthesis isn't available — the on-
+// screen line still carries the moment.
+export function speakLine(text: string) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  const synth = window.speechSynthesis;
+  if (!speechReady) {
+    speechReady = true;
+    synth.addEventListener("voiceschanged", () => {
+      cachedVoice = undefined;
+    });
+  }
+  try {
+    synth.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.pitch = 0.32;
+    utter.rate = 0.82;
+    utter.volume = 0.9;
+    const voice = pickVoice();
+    if (voice) utter.voice = voice;
+    synth.speak(utter);
+  } catch {
+    // Speech synthesis unsupported or blocked by the browser; ignore.
+  }
+}
+
 export function winFanfare() {
   stopMusic();
   const c = ac();

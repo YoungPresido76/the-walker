@@ -211,11 +211,14 @@ export function generateMaze(
   difficulty: Difficulty = "meadow",
   mode: GameMode = "garden",
 ): Maze {
-  const sizes: Record<Difficulty, readonly [number, number]> = {
-    meadow: [MAZE_W, MAZE_H],
-    grove: [21, 17],
-    wildwood: [27, 21],
-  };
+  const sizes: Record<Difficulty, readonly [number, number]> =
+    mode === "underground"
+      ? { meadow: [23, 19], grove: [29, 23], wildwood: [35, 27] }
+      : {
+          meadow: [MAZE_W, MAZE_H],
+          grove: [21, 17],
+          wildwood: [27, 21],
+        };
   const [width, height] = sizes[difficulty];
   const rng = createRng(seed);
   const cells: Cell[][] = [];
@@ -257,7 +260,21 @@ export function generateMaze(
     stack.push({ x: pick.x, y: pick.y });
   }
 
-  const branchFactor = mode === "underground" ? 0.035 : difficulty === "meadow" ? 0.14 : difficulty === "grove" ? 0.2 : 0.27;
+  // Underground gets noticeably more loops/junctions than the garden mazes so
+  // it reads as an actual warren of choices to hide and creep through, not a
+  // single corridor that's just been folded back on itself.
+  const branchFactor =
+    mode === "underground"
+      ? difficulty === "meadow"
+        ? 0.32
+        : difficulty === "grove"
+          ? 0.4
+          : 0.48
+      : difficulty === "meadow"
+        ? 0.14
+        : difficulty === "grove"
+          ? 0.2
+          : 0.27;
   const extras = Math.floor(width * height * branchFactor);
   let added = 0;
   let guard = 0;
@@ -425,7 +442,20 @@ export function generateMaze(
   }
   rng.shuffle(deadEnds);
   rng.shuffle(others);
-  const want = mode === "spirit" ? (difficulty === "wildwood" ? 12 : 9) : difficulty === "wildwood" ? 14 : 8;
+  const want =
+    mode === "spirit"
+      ? difficulty === "wildwood"
+        ? 12
+        : 9
+      : mode === "underground"
+        ? difficulty === "wildwood"
+          ? 20
+          : difficulty === "grove"
+            ? 16
+            : 12
+        : difficulty === "wildwood"
+          ? 14
+          : 8;
   const picks = [...deadEnds, ...others].slice(0, want);
   maze.collectibles = picks.map((p, id) => {
     const c = cellCenter(p.x, p.y);
@@ -453,7 +483,7 @@ export function generateMaze(
     for (const p of others) if (isTurn(cells[p.y]![p.x]!)) pushCandidate(p.x, p.y, "turn");
     for (const collectible of maze.collectibles) pushCandidate(collectible.cellX, collectible.cellY, "relic");
     rng.shuffle(candidates);
-    maze.horrorTriggers = candidates.slice(0, difficulty === "wildwood" ? 10 : difficulty === "grove" ? 8 : 6);
+    maze.horrorTriggers = candidates.slice(0, difficulty === "wildwood" ? 16 : difficulty === "grove" ? 12 : 9);
   }
 
   const cx = ((width - 1) * CELL_SIZE) / 2;

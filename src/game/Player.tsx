@@ -1,7 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect } from "react";
 import type * as THREE from "three";
-import { caughtSting, chime, footstep, peekTone, rustle, scareSting, setAmbientScene, stalkerWhisper, winFanfare } from "./audio";
+import { caughtSting, chime, footstep, peekTone, rustle, scareSting, setAmbientScene, speakLine, stalkerWhisper, winFanfare } from "./audio";
 import { collideCircle, wallsNear } from "./collision";
 import {
   ACCEL,
@@ -98,6 +98,20 @@ function isLookingAtStalker(runtime: Runtime): boolean {
   return dot > STALKER_LOOK_FOV_COS;
 }
 
+// Short lines the stalker "says" at key moments — spoken aloud via speech
+// synthesis and shown as the on-screen line at the same time.
+const NOTICE_LINES = ["There you are.", "I found you.", "I can see you.", "Hello again.", "Been looking for you."];
+const CHASE_START_LINES = ["Run then.", "Now we run.", "I like this part.", "You can't hide now.", "Let's see you try."];
+const CHASE_TAUNT_LINES = ["Faster.", "I'm right behind you.", "You won't make it.", "Closer now.", "I can hear your heart.", "Almost."];
+const CAUGHT_LINES = ["Got you.", "Mine now.", "No more running.", "There's nowhere left.", "Stay."];
+
+function sayLine(runtime: Runtime, lines: string[], duration: number) {
+  const line = lines[Math.floor(Math.random() * lines.length)]!;
+  runtime.voiceLine = line;
+  runtime.voiceLineT = duration;
+  speakLine(line);
+}
+
 // Places the stalker a couple of cells down whichever straight corridor the
 // player is currently facing, so it can pop into view mid-hallway instead of
 // only ever appearing at the one scripted spot.
@@ -116,6 +130,7 @@ function spawnPeekAhead(runtime: Runtime, maze: Maze): boolean {
   runtime.stalkerRoute = [];
   runtime.stalkerRouteT = 0;
   stalkerWhisper();
+  sayLine(runtime, NOTICE_LINES, STALKER_TRIGGER_DELAY + 1.2);
   return true;
 }
 
@@ -194,7 +209,11 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
 
       runtime.elapsed += STEP;
       if (runtime.mode === "underground" && runtime.flashlightOn) {
-        const drain = runtime.battery > 5 ? FLASHLIGHT_MAIN_DRAIN : FLASHLIGHT_RESERVE_DRAIN;
+        // Standing still or creeping sips the battery; sprinting around with
+        // the light on burns through it — one more reason to slow down.
+        const paceSpeed = Math.hypot(runtime.vx, runtime.vz);
+        const paceFactor = paceSpeed > SPRINT_SPEED * 0.75 ? 1.5 : paceSpeed > 0.25 ? 1 : 0.55;
+        const drain = (runtime.battery > 5 ? FLASHLIGHT_MAIN_DRAIN : FLASHLIGHT_RESERVE_DRAIN) * paceFactor;
         runtime.battery = Math.max(0, runtime.battery - drain * STEP);
         if (runtime.battery <= 0) {
           runtime.flashlightOn = false;
@@ -205,21 +224,27 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
         }
       }
       const minute = Math.floor(runtime.elapsed / 60);
-      if (minute > 0 && Math.abs(runtime.elapsed - minute * 60) < STEP * 0.6) {
+      if (runtime.mode !== "underground" && minute > 0 && Math.abs(runtime.elapsed - minute * 60) < STEP * 0.6) {
         runtime.exitPulseT = 3.2;
       }
       if (runtime.exitPulseT > 0) runtime.exitPulseT = Math.max(0, runtime.exitPulseT - STEP);
       if (runtime.hintT > 0) runtime.hintT = Math.max(0, runtime.hintT - STEP);
       if (runtime.hintCd > 0) runtime.hintCd = Math.max(0, runtime.hintCd - STEP);
       if (runtime.scareT > 0) runtime.scareT = Math.max(0, runtime.scareT - STEP);
+      if (runtime.voiceLineT > 0) runtime.voiceLineT = Math.max(0, runtime.voiceLineT - STEP);
+      if (runtime.voiceTauntCd > 0) runtime.voiceTauntCd = Math.max(0, runtime.voiceTauntCd - STEP);
 
       if (runtime.mode === "underground") {
         if (runtime.stalkerState === "dormant") {
           // After the first scripted encounter, it doesn't just vanish for
           // good — it goes quiet for a while and can catch up with you
-          // again further down the maze.
+          // again further down the maze. Moving fast burns the cooldown
+          // faster (it hears you); standing still or creeping barely burns
+          // it at all, which is the whole point of the hide-and-collect loop.
           if (runtime.scareTriggered) {
-            runtime.stalkerCd = Math.max(0, runtime.stalkerCd - STEP);
+            const noiseSpeed = Math.hypot(runtime.vx, runtime.vz);
+            const noiseFactor = noiseSpeed > SPRINT_SPEED * 0.75 ? 1.85 : noiseSpeed > 0.25 ? 1 : 0.2;
+            runtime.stalkerCd = Math.max(0, runtime.stalkerCd - STEP * noiseFactor);
             if (runtime.stalkerCd <= 0 && spawnPeekAhead(runtime, maze)) {
               runtime.stalkerCd = STALKER_RESPAWN_MIN + Math.random() * (STALKER_RESPAWN_MAX - STALKER_RESPAWN_MIN);
             }
@@ -234,6 +259,7 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
                 runtime.gameOverReason = lookedBack ? "looked" : "light";
                 runtime.phase = "gameover";
                 useHud.setState({ phase: "gameover", gameOverReason: runtime.gameOverReason });
+                sayLine(runtime, CAUGHT_LINES, 3);
                 caughtSting();
                 if (document.pointerLockElement) document.exitPointerLock();
               } else {
@@ -241,16 +267,23 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
                 runtime.stalkerRoute = [];
                 runtime.stalkerRouteT = 0;
                 runtime.stalkerLoseT = 0;
+                runtime.voiceTauntCd = 1.4;
                 stalkerWhisper();
+                sayLine(runtime, CHASE_START_LINES, 2.4);
               }
             }
           } else if (runtime.stalkerState === "pursuing") {
             advanceStalker(runtime, maze, runtime.x, runtime.z, STALKER_SPEED);
+            if (runtime.voiceTauntCd <= 0) {
+              sayLine(runtime, CHASE_TAUNT_LINES, 1.8);
+              runtime.voiceTauntCd = 4 + Math.random() * 3;
+            }
             const dist = Math.hypot(runtime.x - runtime.stalkerX, runtime.z - runtime.stalkerZ);
             if (dist < STALKER_CATCH_DISTANCE) {
               runtime.gameOverReason = "caught";
               runtime.phase = "gameover";
               useHud.setState({ phase: "gameover", gameOverReason: "caught" });
+              sayLine(runtime, CAUGHT_LINES, 3);
               caughtSting();
               if (document.pointerLockElement) document.exitPointerLock();
             } else if (dist > STALKER_LOSE_DISTANCE) {
@@ -331,6 +364,7 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
           runtime.stalkerZ = runtime.z + Math.cos(runtime.yaw) * 4.8;
           useHud.setState({ scareTriggered: true });
           scareSting();
+          sayLine(runtime, NOTICE_LINES, STALKER_TRIGGER_DELAY + 1.4);
         }
       }
 
@@ -365,30 +399,48 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
         }
       }
 
-      const spiritReady = runtime.mode !== "spirit" || runtime.collected.size >= maze.collectibles.length;
-      if (runtime.phase === "playing" && spiritReady && inAabb(runtime.x, runtime.z, maze.exitTrigger)) {
-        if (runtime.mode === "spirit") {
-          runtime.phase = "explore";
-          runtime.x = maze.archWorld.x;
-          runtime.z = maze.archWorld.z - 5.5;
-          useHud.setState({ phase: "explore" });
+      if (runtime.mode === "underground") {
+        // No exit to find in the Hollow — gather everything and slip away.
+        if (runtime.phase === "playing" && runtime.collected.size >= maze.collectibles.length) {
+          runtime.phase = "won";
+          runtime.wonTime = runtime.elapsed;
           runtime.vx = 0;
           runtime.vz = 0;
-          return;
+          useHud.setState({
+            phase: "won",
+            wonTime: runtime.elapsed,
+            collected: runtime.collected.size,
+          });
+          if (document.pointerLockElement) document.exitPointerLock();
+          winFanfare();
         }
-        runtime.phase = "won";
-        runtime.wonTime = runtime.elapsed;
-        runtime.vx = 0;
-        runtime.vz = 0;
-        useHud.setState({
-          phase: "won",
-          wonTime: runtime.elapsed,
-          collected: runtime.collected.size,
-        });
-        if (document.pointerLockElement) document.exitPointerLock();
-        winFanfare();
+      } else {
+        const spiritReady = runtime.mode !== "spirit" || runtime.collected.size >= maze.collectibles.length;
+        if (runtime.phase === "playing" && spiritReady && inAabb(runtime.x, runtime.z, maze.exitTrigger)) {
+          if (runtime.mode === "spirit") {
+            runtime.phase = "explore";
+            runtime.x = maze.archWorld.x;
+            runtime.z = maze.archWorld.z - 5.5;
+            useHud.setState({ phase: "explore" });
+            runtime.vx = 0;
+            runtime.vz = 0;
+            return;
+          }
+          runtime.phase = "won";
+          runtime.wonTime = runtime.elapsed;
+          runtime.vx = 0;
+          runtime.vz = 0;
+          useHud.setState({
+            phase: "won",
+            wonTime: runtime.elapsed,
+            collected: runtime.collected.size,
+          });
+          if (document.pointerLockElement) document.exitPointerLock();
+          winFanfare();
+        }
       }
     }
+
 
     const moveAmt = Math.min(1, Math.hypot(runtime.vx, runtime.vz) / WALK_SPEED);
     if (playing && moveAmt > 0.12) {
@@ -414,6 +466,10 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
       } else {
         runtime.hintEl.textContent = "Peek";
       }
+    }
+    if (runtime.voiceEl) {
+      runtime.voiceEl.textContent = runtime.voiceLineT > 0 ? runtime.voiceLine : "";
+      runtime.voiceEl.style.opacity = runtime.voiceLineT > 0 ? String(Math.min(1, runtime.voiceLineT * 0.9 + 0.15)) : "0";
     }
     const nearRiver = maze.landmarks.some((landmark) => landmark.kind === "river" && Math.hypot(runtime.x - landmark.x, runtime.z - landmark.z) < 18);
     setAmbientScene(runtime.mode === "spirit" && runtime.phase === "explore", nearRiver);

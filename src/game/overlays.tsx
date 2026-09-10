@@ -56,7 +56,7 @@ export function TitleOverlay({
         {mode === "spirit"
           ? "Awaken the hidden grove shrines, gather their light, and find the gate when the garden reveals it."
           : mode === "underground"
-            ? "Follow the old stair below the hedge line. The hollow is dark, and something down there remembers your footsteps."
+            ? "Something remembers your footsteps down here. Stay quiet, gather what's scattered through the dark, and don't let it see you looking back."
           : "Tall hedges, narrow gravel, a gate somewhere ahead. Walk it. Don't trust the last turn."}
       </p>
       <div className="mt-5 grid grid-cols-3 gap-2">
@@ -81,12 +81,15 @@ export function TitleOverlay({
         Enter the maze
       </button>
       <p className="mt-5 text-xs leading-relaxed text-faint">
-        WASD to walk · mouse to look · H to peek · L light
+        {mode === "underground"
+          ? "WASD to walk · mouse to look · H to peek · L light — sprinting is loud, walking or standing still is not"
+          : "WASD to walk · mouse to look · H to peek · L light"}
         <span className="mt-1 block sm:hidden">On a phone: left stick moves, right side looks.</span>
       </p>
     </OverlayCard>
   );
 }
+
 
 export function PauseOverlay({ onResume }: { onResume: () => void }) {
   return (
@@ -109,17 +112,19 @@ export function WinOverlay({
   time,
   collected,
   total,
+  mode,
   onReplay,
 }: {
   time: number;
   collected: number;
   total: number;
+  mode: GameMode;
   onReplay: () => void;
 }) {
   return (
     <OverlayCard>
-      <p className="text-xs font-medium tracking-[0.18em] text-faint uppercase">The gate</p>
-      <h2 className="font-display mt-3 text-3xl font-semibold tracking-tight text-fg">You found the way out</h2>
+      <p className="text-xs font-medium tracking-[0.18em] text-faint uppercase">{mode === "underground" ? "The Hollow" : "The gate"}</p>
+      <h2 className="font-display mt-3 text-3xl font-semibold tracking-tight text-fg">{mode === "underground" ? "You gathered it all and slipped away" : "You found the way out"}</h2>
       <div className="mt-6 grid grid-cols-2 gap-3">
         <div className="rounded-md bg-surface-2 px-4 py-3">
           <p className="text-xs text-faint">Time</p>
@@ -276,17 +281,20 @@ export function Hud({
   const timeRef = useRef<HTMLSpanElement>(null);
   const hintRef = useRef<HTMLSpanElement>(null);
   const collectRef = useRef<HTMLSpanElement>(null);
+  const voiceRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     runtime.mapEl = mapRef.current;
     runtime.timeEl = timeRef.current;
     runtime.hintEl = hintRef.current;
     runtime.collectEl = collectRef.current;
+    runtime.voiceEl = voiceRef.current;
     return () => {
       runtime.mapEl = null;
       runtime.timeEl = null;
       runtime.hintEl = null;
       runtime.collectEl = null;
+      runtime.voiceEl = null;
     };
   }, [runtime]);
 
@@ -376,10 +384,14 @@ export function Hud({
         </div>
       ) : null}
 
-      {playing && runtime.mode === "underground" && scareTriggered && runtime.stalkerState !== "dormant" ? (
-        <div className={`pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 text-center ${runtime.stalkerState === "pursuing" ? "animate-pulse" : ""}`}>
-          <p className="font-display text-lg tracking-[0.28em] text-red-200/80 uppercase drop-shadow-[0_0_12px_rgba(180,42,34,0.75)]">{runtime.stalkerState === "pursuing" ? "RUN" : "Don&apos;t look back"}</p>
-          <p className="mt-2 text-[10px] tracking-[0.22em] text-red-100/55 uppercase">{runtime.stalkerState === "peeking" ? "kill the light" : "it is behind you"}</p>
+      {playing && runtime.mode === "underground" ? (
+        <div className="pointer-events-none absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2 text-center">
+          <p ref={voiceRef} className="font-display text-lg tracking-[0.28em] text-red-200/85 uppercase drop-shadow-[0_0_12px_rgba(180,42,34,0.75)] transition-opacity duration-300" style={{ opacity: 0 }} />
+          {scareTriggered && runtime.stalkerState !== "dormant" ? (
+            <p className={`mt-2 text-[10px] tracking-[0.22em] text-red-100/55 uppercase ${runtime.stalkerState === "pursuing" ? "animate-pulse" : ""}`}>
+              {runtime.stalkerState === "peeking" ? "kill the light" : "it is behind you"}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
