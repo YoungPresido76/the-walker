@@ -1,7 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect } from "react";
 import type * as THREE from "three";
-import { caughtSting, chime, footstep, peekTone, rustle, scareSting, setAmbientScene, speakLine, stalkerWhisper, winFanfare } from "./audio";
+import { caughtSting, chime, footstep, heartbeat, peekTone, rustle, scareSting, setAmbientScene, speakLine, stalkerFootstep, stalkerWhisper, winFanfare } from "./audio";
 import { collideCircle, wallsNear } from "./collision";
 import {
   ACCEL,
@@ -281,6 +281,16 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
             if (runtime.stalkerCd <= 0 && spawnPeekAhead(runtime, maze)) {
               runtime.stalkerCd = STALKER_RESPAWN_MIN + Math.random() * (STALKER_RESPAWN_MAX - STALKER_RESPAWN_MIN);
             }
+            // At high Presence it starts giving itself away even while
+            // dormant — a distant, quiet footstep with no visible source.
+            runtime.dreadCd -= STEP;
+            if (runtime.dreadCd <= 0) {
+              if (runtime.presence > 55) {
+                const pan = Math.random() * 2 - 1;
+                stalkerFootstep(0.16 + ((runtime.presence - 55) / 45) * 0.22, pan);
+              }
+              runtime.dreadCd = 7 + Math.random() * 9;
+            }
           }
         } else {
           runtime.stalkerT = Math.max(0, runtime.stalkerT - STEP);
@@ -301,6 +311,7 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
                 runtime.stalkerRouteT = 0;
                 runtime.stalkerLoseT = 0;
                 runtime.stillChaseT = 0;
+                runtime.stalkerFootstepCd = 0;
                 runtime.voiceTauntCd = 1.4;
                 stalkerWhisper();
                 sayLine(runtime, CHASE_START_LINES, 2.4);
@@ -313,6 +324,21 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
               runtime.voiceTauntCd = 4 + Math.random() * 3;
             }
             const dist = Math.hypot(runtime.x - runtime.stalkerX, runtime.z - runtime.stalkerZ);
+            // Footsteps panned to the side it's actually on, cadence and
+            // volume both tightening as it closes the gap — audible proof
+            // it's gaining or falling behind without needing to look.
+            runtime.stalkerFootstepCd -= STEP;
+            if (runtime.stalkerFootstepCd <= 0) {
+              const proximity = Math.max(0, Math.min(1, 1 - dist / STALKER_LOSE_DISTANCE));
+              const rx = Math.cos(runtime.yaw);
+              const rz = -Math.sin(runtime.yaw);
+              const dx = runtime.stalkerX - runtime.x;
+              const dz = runtime.stalkerZ - runtime.z;
+              const pan = dist > 0.05 ? (dx * rx + dz * rz) / dist : 0;
+              stalkerFootstep(0.3 + proximity * 0.9, pan);
+              if (dist < STALKER_CATCH_DISTANCE * 4) heartbeat(0.5 + proximity * 0.9);
+              runtime.stalkerFootstepCd = 0.75 - proximity * 0.46;
+            }
             if (dist < STALKER_CATCH_DISTANCE) {
               runtime.gameOverReason = "caught";
               runtime.phase = "gameover";

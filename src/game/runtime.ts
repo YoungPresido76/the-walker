@@ -27,6 +27,8 @@ export type Runtime = {
   presenceEl: HTMLElement | null;
   bonusEl: HTMLElement | null;
   stillChaseT: number;
+  stalkerFootstepCd: number;
+  dreadCd: number;
   scareT: number;
   scareTriggered: boolean;
   stalkerState: "dormant" | "peeking" | "pursuing";
@@ -93,6 +95,8 @@ export function createRuntime(maze: Maze, input: GameInput): Runtime {
     presenceEl: null,
     bonusEl: null,
     stillChaseT: 0,
+    stalkerFootstepCd: 0,
+    dreadCd: 8 + Math.random() * 10,
     scareT: 0,
     scareTriggered: false,
     stalkerState: "dormant",

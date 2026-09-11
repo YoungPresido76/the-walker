@@ -290,6 +290,48 @@ export function stalkerWhisper() {
   o.stop(t + 0.64);
 }
 
+// A heavy footstep panned left/right based on where the stalker actually is
+// relative to the camera, so you can tell which side it's closing in from
+// without turning around. Strength should scale with proximity.
+export function stalkerFootstep(strength = 1, pan = 0) {
+  const c = ac();
+  if (!c || !noise || !sfx) return;
+  const t = c.currentTime;
+  const src = c.createBufferSource();
+  src.buffer = noise;
+  src.playbackRate.value = 0.4 + Math.random() * 0.1;
+  const bp = c.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = 85 + Math.random() * 35;
+  bp.Q.value = 0.9;
+  const panner = c.createStereoPanner();
+  panner.pan.value = Math.max(-1, Math.min(1, pan));
+  const g = envGain(c, t, 0.006, 0.17, Math.min(0.5, 0.42 * strength));
+  src.connect(bp);
+  bp.connect(panner);
+  panner.connect(g);
+  src.start(t);
+  src.stop(t + 0.2);
+}
+
+// A low double-thump heartbeat — used when it's very close during a chase,
+// intensity scaling with how close.
+export function heartbeat(strength = 1) {
+  const c = ac();
+  if (!c || !sfx) return;
+  const t = c.currentTime;
+  for (const delay of [0, 0.14]) {
+    const o = c.createOscillator();
+    o.type = "sine";
+    o.frequency.setValueAtTime(52, t + delay);
+    o.frequency.exponentialRampToValueAtTime(36, t + delay + 0.12);
+    const g = envGain(c, t + delay, 0.008, 0.14, Math.min(0.32, 0.24 * strength));
+    o.connect(g);
+    o.start(t + delay);
+    o.stop(t + delay + 0.16);
+  }
+}
+
 export function caughtSting() {
   scareSting();
   noiseBurst("highpass", 1600, 0.5, 0.22, 1.8);
