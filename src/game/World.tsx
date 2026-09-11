@@ -1,7 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { FLASHLIGHT_FLICKER_THRESHOLD, WALL_HEIGHT, WORLD } from "./constants";
+import { FLASHLIGHT_FLICKER_THRESHOLD, FLASHLIGHT_MODES, WALL_HEIGHT, WORLD } from "./constants";
 import type { Instance, Maze } from "./maze";
 import type { Runtime } from "./runtime";
 
@@ -196,11 +196,16 @@ function Flashlight({ runtime }: { runtime: Runtime }) {
     const beam = beamRef.current;
     if (!light || !fill || !beam) return;
     const lowBatteryFlicker = runtime.battery <= FLASHLIGHT_FLICKER_THRESHOLD && Math.sin(runtime.elapsed * 31) > -0.15;
-    const active = runtime.mode === "underground" && runtime.flashlightOn && (runtime.battery > FLASHLIGHT_FLICKER_THRESHOLD || lowBatteryFlicker);
-    light.intensity = active ? 22 + Math.sin(runtime.elapsed * 17) * 0.7 : 0;
-    fill.intensity = active ? 8 : 0;
+    const modeCfg = FLASHLIGHT_MODES[runtime.flashlightMode];
+    const active = runtime.mode === "underground" && runtime.flashlightMode > 0 && (runtime.battery > FLASHLIGHT_FLICKER_THRESHOLD || lowBatteryFlicker);
+    light.intensity = active ? modeCfg.intensity + Math.sin(runtime.elapsed * 17) * (modeCfg.intensity * 0.03) : 0;
+    light.distance = modeCfg.distance;
+    light.angle = modeCfg.angle || Math.PI / 9;
+    light.penumbra = modeCfg.penumbra || 0.6;
+    fill.intensity = active ? modeCfg.fillIntensity : 0;
     beam.visible = active;
-    beam.scale.setScalar(1 + Math.sin(runtime.elapsed * 13) * 0.018);
+    (beam.material as THREE.MeshBasicMaterial).opacity = modeCfg.beamOpacity;
+    beam.scale.setScalar((0.7 + runtime.flashlightMode * 0.18) * (1 + Math.sin(runtime.elapsed * 13) * 0.018));
   });
   return null;
 }
@@ -305,7 +310,22 @@ function Orbs({ maze, runtime }: { maze: Maze; runtime: Runtime }) {
       m.rotation.y = t * 0.9 + i;
     }
   });
-  return <group ref={group}>{maze.collectibles.map((c, i) => <group key={c.id} position={[c.x, 0.82, c.z]}><mesh><icosahedronGeometry args={[0.16, 0]} /><meshStandardMaterial color={WORLD.orb} emissive={WORLD.orb} emissiveIntensity={1.8} roughness={0.35} flatShading /></mesh>{i < 4 ? <pointLight color={WORLD.orb} intensity={0.85} distance={3.4} decay={2} /> : null}</group>)}</group>;
+  return (
+    <group ref={group}>
+      {maze.collectibles.map((c, i) => {
+        const color = c.bonus ? WORLD.bonusOrb : WORLD.orb;
+        return (
+          <group key={c.id} position={[c.x, 0.82, c.z]}>
+            <mesh>
+              <icosahedronGeometry args={[c.bonus ? 0.2 : 0.16, 0]} />
+              <meshStandardMaterial color={color} emissive={color} emissiveIntensity={c.bonus ? 2.3 : 1.8} roughness={0.35} flatShading />
+            </mesh>
+            {i < 4 || c.bonus ? <pointLight color={color} intensity={c.bonus ? 1.15 : 0.85} distance={c.bonus ? 4.2 : 3.4} decay={2} /> : null}
+          </group>
+        );
+      })}
+    </group>
+  );
 }
 
 function HintArrow({ runtime }: { runtime: Runtime }) {

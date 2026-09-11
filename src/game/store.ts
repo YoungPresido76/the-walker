@@ -6,16 +6,17 @@ export type HudState = {
   phase: Phase;
   collected: number;
   total: number;
+  shardsRequired: number;
   peeks: number;
   scareTriggered: boolean;
-  flashlightOn: boolean;
+  flashlightMode: 0 | 1 | 2;
   battery: number;
   gameOverReason: "battery" | "light" | "caught" | "looked" | null;
   wonTime: number;
   seed: number;
   locked: boolean;
   touch: boolean;
-  reset: (opts: { seed: number; total: number; touch: boolean }) => void;
+  reset: (opts: { seed: number; total: number; shardsRequired: number; touch: boolean }) => void;
   setPhase: (phase: Phase) => void;
 };
 
@@ -23,23 +24,25 @@ export const useHud = create<HudState>((set) => ({
   phase: "title",
   collected: 0,
   total: 8,
+  shardsRequired: 8,
   peeks: 0,
   scareTriggered: false,
-  flashlightOn: true,
+  flashlightMode: 1,
   battery: 100,
   gameOverReason: null,
   wonTime: 0,
   seed: 0,
   locked: false,
   touch: false,
-  reset: ({ seed, total, touch }) =>
+  reset: ({ seed, total, shardsRequired, touch }) =>
     set({
       phase: "title",
       collected: 0,
       total,
+      shardsRequired,
       peeks: 0,
       scareTriggered: false,
-      flashlightOn: true,
+      flashlightMode: 1,
       battery: 100,
       gameOverReason: null,
       wonTime: 0,

@@ -2,6 +2,7 @@ import {
   CELL_SIZE,
   MAZE_H,
   MAZE_W,
+  SHARD_CONFIG,
   WALL_HEIGHT,
   WALL_THICK,
 } from "./constants";
@@ -54,6 +55,9 @@ export type Collectible = {
   cellY: number;
   x: number;
   z: number;
+  // Bonus shards (underground only) aren't required to leave — they're
+  // placed deeper in the maze as an optional risk/reward.
+  bonus?: boolean;
 };
 
 export type HorrorTrigger = { x: number; y: number; kind: "grid" | "turn" | "relic" };
@@ -81,6 +85,9 @@ export type Maze = {
   difficulty: Difficulty;
   mode: GameMode;
   landmarks: Landmark[];
+  // Shards required to leave (underground only, equal to collectibles.length
+  // elsewhere — see SHARD_CONFIG).
+  shardsRequired: number;
 };
 
 export function cellCenter(x: number, y: number): { x: number; z: number } {
@@ -102,6 +109,29 @@ function neighborsOpen(cell: Cell, maze: Maze): { x: number; y: number; dir: Dir
     out.push({ x: nx, y: ny, dir });
   }
   return out;
+}
+
+// Distance (in steps) from `from` to every reachable cell — used to rank
+// how deep/dangerous a spot in the maze is, e.g. for placing bonus shards
+// farther from the start than the ones required to leave.
+export function bfsDistances(maze: Maze, from: { x: number; y: number }): Int32Array {
+  const dist = new Int32Array(maze.width * maze.height).fill(-1);
+  const key = (x: number, y: number) => y * maze.width + x;
+  dist[key(from.x, from.y)] = 0;
+  const q = [from];
+  for (let i = 0; i < q.length; i++) {
+    const cur = q[i]!;
+    const cell = maze.cells[cur.y]?.[cur.x];
+    if (!cell) continue;
+    const d = dist[key(cur.x, cur.y)]!;
+    for (const n of neighborsOpen(cell, maze)) {
+      const k = key(n.x, n.y);
+      if (dist[k] !== -1) continue;
+      dist[k] = d + 1;
+      q.push({ x: n.x, y: n.y });
+    }
+  }
+  return dist;
 }
 
 export function bfsPath(
@@ -428,6 +458,7 @@ export function generateMaze(
     difficulty,
     mode,
     landmarks: [],
+    shardsRequired: 0,
   };
 
   const deadEnds: { x: number; y: number }[] = [];
@@ -448,11 +479,7 @@ export function generateMaze(
         ? 12
         : 9
       : mode === "underground"
-        ? difficulty === "wildwood"
-          ? 20
-          : difficulty === "grove"
-            ? 16
-            : 12
+        ? SHARD_CONFIG[difficulty].total
         : difficulty === "wildwood"
           ? 14
           : 8;
@@ -467,6 +494,22 @@ export function generateMaze(
       z: c.z + rng.range(-0.45, 0.45),
     };
   });
+
+  if (mode === "underground") {
+    // Only `required` shards are needed to leave. Mark the ones farthest
+    // (by corridor distance) from the start as optional bonus shards, so the
+    // risk/reward tier is tied to how deep you actually have to go for them.
+    maze.shardsRequired = Math.min(maze.collectibles.length, SHARD_CONFIG[difficulty].required);
+    const bonusCount = maze.collectibles.length - maze.shardsRequired;
+    if (bonusCount > 0) {
+      const dist = bfsDistances(maze, start);
+      const byDepth = [...maze.collectibles].sort((a, b) => (dist[b.cellY * width + b.cellX] ?? 0) - (dist[a.cellY * width + a.cellX] ?? 0));
+      const bonusIds = new Set(byDepth.slice(0, bonusCount).map((c) => c.id));
+      maze.collectibles = maze.collectibles.map((c) => (bonusIds.has(c.id) ? { ...c, bonus: true } : c));
+    }
+  } else {
+    maze.shardsRequired = maze.collectibles.length;
+  }
 
   if (mode === "underground") {
     const candidates: HorrorTrigger[] = [];

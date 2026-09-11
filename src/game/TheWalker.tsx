@@ -84,6 +84,7 @@ function HedgerowRun({
     useHud.getState().reset({
       seed: maze.seed,
       total: maze.collectibles.length,
+      shardsRequired: maze.shardsRequired,
       touch: detectTouch(),
     });
     runtime.phase = "title";
@@ -129,6 +130,10 @@ function HedgerowRun({
     runtime.input.pulseFlashlight();
   }, [runtime]);
 
+  const onLeave = useCallback(() => {
+    runtime.input.pulseLeave();
+  }, [runtime]);
+
   const cheap = typeof window !== "undefined" && window.innerWidth < 520;
 
   return (
@@ -163,7 +168,7 @@ function HedgerowRun({
 
       <div className="vignette" />
 
-      <Hud runtime={runtime} onHint={onHint} onFlashlight={onFlashlight} />
+      <Hud runtime={runtime} onHint={onHint} onFlashlight={onFlashlight} onLeave={onLeave} />
 
       {phase === "title" ? <TitleOverlay onEnter={startPlay} difficulty={difficulty} mode={mode} onDifficulty={onDifficulty} onMode={onMode} /> : null}
       {phase === "paused" && !locked && !touch ? <PauseOverlay onResume={startPlay} /> : null}

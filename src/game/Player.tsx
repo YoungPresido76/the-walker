@@ -9,13 +9,23 @@ import {
   FRICTION,
   FLASHLIGHT_FLICKER_THRESHOLD,
   FLASHLIGHT_MAIN_DRAIN,
+  FLASHLIGHT_MODES,
   FLASHLIGHT_RESERVE_DRAIN,
   GAMEPAD_LOOK,
+  HIDE_MIN_SAFE_DISTANCE,
+  HIDE_SPEED_THRESHOLD,
+  HIDE_TIME_TO_LOSE,
   HINT_COOLDOWN,
   HINT_DURATION,
   MOUSE_SENS,
   PITCH_LIMIT,
   PLAYER_RADIUS,
+  PRESENCE_BONUS_SHARD,
+  PRESENCE_DECAY_RATE,
+  PRESENCE_MAX,
+  PRESENCE_STILL_DECAY_BONUS,
+  PRESENCE_SPRINT_RATE,
+  PRESENCE_WALK_RATE,
   SCARE_DISTANCE,
   SCARE_DURATION,
   STALKER_CATCH_DISTANCE,
@@ -190,9 +200,19 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
       peekTone();
     }
 
-    if (playing && actions.flashlightPressed) {
-      runtime.flashlightOn = runtime.battery > 0 && !runtime.flashlightOn;
-      useHud.setState({ flashlightOn: runtime.flashlightOn });
+    if (playing && actions.flashlightPressed && runtime.battery > 0) {
+      runtime.flashlightMode = ((runtime.flashlightMode + 1) % 3) as 0 | 1 | 2;
+      useHud.setState({ flashlightMode: runtime.flashlightMode });
+    }
+
+    if (playing && actions.leavePressed && runtime.mode === "underground" && runtime.phase === "playing" && runtime.collected.size >= maze.shardsRequired) {
+      runtime.phase = "won";
+      runtime.wonTime = runtime.elapsed;
+      runtime.vx = 0;
+      runtime.vz = 0;
+      useHud.setState({ phase: "won", wonTime: runtime.elapsed, collected: runtime.collected.size });
+      if (document.pointerLockElement) document.exitPointerLock();
+      winFanfare();
     }
 
     runtime.acc += dtCap;
@@ -208,20 +228,33 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
       }
 
       runtime.elapsed += STEP;
-      if (runtime.mode === "underground" && runtime.flashlightOn) {
+      const paceSpeed = Math.hypot(runtime.vx, runtime.vz);
+      if (runtime.mode === "underground" && runtime.flashlightMode > 0) {
         // Standing still or creeping sips the battery; sprinting around with
-        // the light on burns through it — one more reason to slow down.
-        const paceSpeed = Math.hypot(runtime.vx, runtime.vz);
+        // the light on burns through it — one more reason to slow down. The
+        // beam mode itself matters too: LOW is cheap, FULL is not.
+        const modeCfg = FLASHLIGHT_MODES[runtime.flashlightMode];
         const paceFactor = paceSpeed > SPRINT_SPEED * 0.75 ? 1.5 : paceSpeed > 0.25 ? 1 : 0.55;
-        const drain = (runtime.battery > 5 ? FLASHLIGHT_MAIN_DRAIN : FLASHLIGHT_RESERVE_DRAIN) * paceFactor;
+        const drain = (runtime.battery > 5 ? FLASHLIGHT_MAIN_DRAIN : FLASHLIGHT_RESERVE_DRAIN) * modeCfg.drainMult * paceFactor;
         runtime.battery = Math.max(0, runtime.battery - drain * STEP);
         if (runtime.battery <= 0) {
-          runtime.flashlightOn = false;
-          useHud.setState({ flashlightOn: false, battery: 0 });
+          runtime.flashlightMode = 0;
+          useHud.setState({ flashlightMode: 0, battery: 0 });
           stalkerWhisper();
         } else if (Math.floor(runtime.battery) !== Math.floor(runtime.battery + drain * STEP)) {
           useHud.setState({ battery: runtime.battery });
         }
+      }
+      if (runtime.mode === "underground") {
+        // Presence: how much the Hollow has noticed you. Sprinting and a
+        // full beam raise it; standing still lets it fade fastest.
+        const modeCfg = FLASHLIGHT_MODES[runtime.flashlightMode];
+        let presenceDelta: number;
+        if (paceSpeed > SPRINT_SPEED * 0.75) presenceDelta = PRESENCE_SPRINT_RATE;
+        else if (paceSpeed > 0.25) presenceDelta = PRESENCE_WALK_RATE;
+        else presenceDelta = -(PRESENCE_DECAY_RATE + PRESENCE_STILL_DECAY_BONUS);
+        presenceDelta += modeCfg.presenceRate;
+        runtime.presence = Math.max(0, Math.min(PRESENCE_MAX, runtime.presence + presenceDelta * STEP));
       }
       const minute = Math.floor(runtime.elapsed / 60);
       if (runtime.mode !== "underground" && minute > 0 && Math.abs(runtime.elapsed - minute * 60) < STEP * 0.6) {
@@ -240,11 +273,11 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
           // good — it goes quiet for a while and can catch up with you
           // again further down the maze. Moving fast burns the cooldown
           // faster (it hears you); standing still or creeping barely burns
-          // it at all, which is the whole point of the hide-and-collect loop.
+          // it at all. Higher Presence sharpens its hearing further.
           if (runtime.scareTriggered) {
-            const noiseSpeed = Math.hypot(runtime.vx, runtime.vz);
-            const noiseFactor = noiseSpeed > SPRINT_SPEED * 0.75 ? 1.85 : noiseSpeed > 0.25 ? 1 : 0.2;
-            runtime.stalkerCd = Math.max(0, runtime.stalkerCd - STEP * noiseFactor);
+            const noiseFactor = paceSpeed > SPRINT_SPEED * 0.75 ? 1.85 : paceSpeed > 0.25 ? 1 : 0.2;
+            const presenceMult = 1 + runtime.presence / 160;
+            runtime.stalkerCd = Math.max(0, runtime.stalkerCd - STEP * noiseFactor * presenceMult);
             if (runtime.stalkerCd <= 0 && spawnPeekAhead(runtime, maze)) {
               runtime.stalkerCd = STALKER_RESPAWN_MIN + Math.random() * (STALKER_RESPAWN_MAX - STALKER_RESPAWN_MIN);
             }
@@ -255,7 +288,7 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
             const lookedBack = isLookingAtStalker(runtime);
             if (lookedBack) runtime.stalkerT = 0;
             if (runtime.stalkerT <= 0) {
-              if (runtime.flashlightOn) {
+              if (runtime.flashlightMode > 0) {
                 runtime.gameOverReason = lookedBack ? "looked" : "light";
                 runtime.phase = "gameover";
                 useHud.setState({ phase: "gameover", gameOverReason: runtime.gameOverReason });
@@ -267,6 +300,7 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
                 runtime.stalkerRoute = [];
                 runtime.stalkerRouteT = 0;
                 runtime.stalkerLoseT = 0;
+                runtime.stillChaseT = 0;
                 runtime.voiceTauntCd = 1.4;
                 stalkerWhisper();
                 sayLine(runtime, CHASE_START_LINES, 2.4);
@@ -286,16 +320,25 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
               sayLine(runtime, CAUGHT_LINES, 3);
               caughtSting();
               if (document.pointerLockElement) document.exitPointerLock();
-            } else if (dist > STALKER_LOSE_DISTANCE) {
-              runtime.stalkerLoseT += STEP;
-              if (runtime.stalkerLoseT > STALKER_LOSE_TIME) {
+            } else {
+              // Two ways to shake it: put real distance between you, or go
+              // completely still (and not have it right on top of you) long
+              // enough that it loses the scent — the Listener tracks sound,
+              // so silence is its own escape route.
+              if (paceSpeed < HIDE_SPEED_THRESHOLD && dist > HIDE_MIN_SAFE_DISTANCE) {
+                runtime.stillChaseT += STEP;
+              } else {
+                runtime.stillChaseT = 0;
+              }
+              if (dist > STALKER_LOSE_DISTANCE) runtime.stalkerLoseT += STEP;
+              else runtime.stalkerLoseT = 0;
+              if (runtime.stillChaseT > HIDE_TIME_TO_LOSE || runtime.stalkerLoseT > STALKER_LOSE_TIME) {
                 runtime.stalkerState = "dormant";
                 runtime.stalkerLoseT = 0;
+                runtime.stillChaseT = 0;
                 runtime.stalkerRoute = [];
                 runtime.stalkerCd = STALKER_RESPAWN_MIN + Math.random() * (STALKER_RESPAWN_MAX - STALKER_RESPAWN_MIN);
               }
-            } else {
-              runtime.stalkerLoseT = 0;
             }
           }
         }
@@ -391,7 +434,8 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
         if (Math.hypot(runtime.x - c.x, runtime.z - c.z) < 0.72) {
           runtime.collected.add(c.id);
           if (runtime.mode === "underground") {
-            runtime.battery = Math.min(100, runtime.battery + 5);
+            runtime.battery = Math.min(100, runtime.battery + (c.bonus ? 9 : 5));
+            if (c.bonus) runtime.presence = Math.min(PRESENCE_MAX, runtime.presence + PRESENCE_BONUS_SHARD);
             useHud.setState({ battery: runtime.battery });
           }
           chime();
@@ -399,22 +443,7 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
         }
       }
 
-      if (runtime.mode === "underground") {
-        // No exit to find in the Hollow — gather everything and slip away.
-        if (runtime.phase === "playing" && runtime.collected.size >= maze.collectibles.length) {
-          runtime.phase = "won";
-          runtime.wonTime = runtime.elapsed;
-          runtime.vx = 0;
-          runtime.vz = 0;
-          useHud.setState({
-            phase: "won",
-            wonTime: runtime.elapsed,
-            collected: runtime.collected.size,
-          });
-          if (document.pointerLockElement) document.exitPointerLock();
-          winFanfare();
-        }
-      } else {
+      if (runtime.mode !== "underground") {
         const spiritReady = runtime.mode !== "spirit" || runtime.collected.size >= maze.collectibles.length;
         if (runtime.phase === "playing" && spiritReady && inAabb(runtime.x, runtime.z, maze.exitTrigger)) {
           if (runtime.mode === "spirit") {
@@ -458,7 +487,19 @@ export function Player({ runtime, maze }: { runtime: Runtime; maze: Maze }) {
 
     if (runtime.timeEl && playing) runtime.timeEl.textContent = formatTime(runtime.elapsed);
     if (runtime.collectEl) {
-      runtime.collectEl.textContent = `${runtime.collected.size}/${maze.collectibles.length}`;
+      const req = runtime.mode === "underground" ? maze.shardsRequired : maze.collectibles.length;
+      runtime.collectEl.textContent = `${runtime.collected.size}/${req}`;
+    }
+    if (runtime.bonusEl) {
+      const bonusCollected = Math.max(0, runtime.collected.size - maze.shardsRequired);
+      const bonusTotal = maze.collectibles.length - maze.shardsRequired;
+      runtime.bonusEl.textContent = bonusTotal > 0 ? `+${bonusCollected} bonus` : "";
+    }
+    if (runtime.presenceEl) {
+      const pct = Math.round(runtime.presence);
+      runtime.presenceEl.style.width = `${pct}%`;
+      const hue = Math.max(0, 130 - runtime.presence * 1.3);
+      runtime.presenceEl.style.background = `hsl(${hue}, 70%, 52%)`;
     }
     if (runtime.hintEl) {
       if (runtime.hintCd > 0 && runtime.hintT <= 0) {

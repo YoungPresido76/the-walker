@@ -6,6 +6,7 @@ const GAME_CODES = new Set([
   "KeyH",
   "KeyF",
   "KeyL",
+  "KeyE",
   "ArrowUp",
   "ArrowDown",
   "ArrowLeft",
@@ -25,6 +26,7 @@ export type Actions = {
   lookPadY: number;
   hintPressed: boolean;
   flashlightPressed: boolean;
+  leavePressed: boolean;
 };
 
 function radialDeadzone(x: number, y: number, dz = 0.16): { x: number; y: number } {
@@ -44,8 +46,10 @@ export class GameInput {
   hintPad = false;
   queuedHint = false;
   queuedFlashlight = false;
+  queuedLeave = false;
   private prevHint = false;
   private prevFlashlight = false;
+  private prevLeave = false;
 
   attach(): () => void {
     const onDown = (e: KeyboardEvent) => {
@@ -86,6 +90,10 @@ export class GameInput {
 
   pulseFlashlight() {
     this.queuedFlashlight = true;
+  }
+
+  pulseLeave() {
+    this.queuedLeave = true;
   }
 
   sample(): Actions {
@@ -130,6 +138,10 @@ export class GameInput {
     this.queuedFlashlight = false;
     const flashlightPressed = flashlightHeld && !this.prevFlashlight;
     this.prevFlashlight = flashlightHeld;
+    const leaveHeld = down("KeyE") || this.queuedLeave;
+    this.queuedLeave = false;
+    const leavePressed = leaveHeld && !this.prevLeave;
+    this.prevLeave = leaveHeld;
 
     const lookX = this.lookX;
     const lookY = this.lookY;
@@ -146,6 +158,7 @@ export class GameInput {
       lookPadY,
       hintPressed,
       flashlightPressed,
+      leavePressed,
     };
   }
 }

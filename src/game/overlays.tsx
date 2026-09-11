@@ -1,4 +1,4 @@
-import { Battery, Compass, Eye, Flashlight, Flower2, RotateCcw } from "lucide-react";
+import { Battery, Compass, Eye, Flashlight, FlashlightOff, Flower2, LogOut, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { TOUCH_LOOK_SENS } from "./constants";
 import type { GameInput } from "./input";
@@ -56,7 +56,7 @@ export function TitleOverlay({
         {mode === "spirit"
           ? "Awaken the hidden grove shrines, gather their light, and find the gate when the garden reveals it."
           : mode === "underground"
-            ? "Something remembers your footsteps down here. Stay quiet, gather what's scattered through the dark, and don't let it see you looking back."
+            ? "Something down here tracks you by sound — sprint and it hears you, stand still and it loses you. Gather enough Echo Shards to leave, or risk going deeper for the rest."
           : "Tall hedges, narrow gravel, a gate somewhere ahead. Walk it. Don't trust the last turn."}
       </p>
       <div className="mt-5 grid grid-cols-3 gap-2">
@@ -82,7 +82,7 @@ export function TitleOverlay({
       </button>
       <p className="mt-5 text-xs leading-relaxed text-faint">
         {mode === "underground"
-          ? "WASD to walk · mouse to look · H to peek · L light — sprinting is loud, walking or standing still is not"
+          ? "WASD to walk · mouse to look · H to peek · L cycles the light · E leaves once you have enough shards — sprinting is loud, standing still is safest"
           : "WASD to walk · mouse to look · H to peek · L light"}
         <span className="mt-1 block sm:hidden">On a phone: left stick moves, right side looks.</span>
       </p>
@@ -121,17 +121,20 @@ export function WinOverlay({
   mode: GameMode;
   onReplay: () => void;
 }) {
+  const fullClear = collected >= total;
   return (
     <OverlayCard>
       <p className="text-xs font-medium tracking-[0.18em] text-faint uppercase">{mode === "underground" ? "The Hollow" : "The gate"}</p>
-      <h2 className="font-display mt-3 text-3xl font-semibold tracking-tight text-fg">{mode === "underground" ? "You gathered it all and slipped away" : "You found the way out"}</h2>
+      <h2 className="font-display mt-3 text-3xl font-semibold tracking-tight text-fg">
+        {mode === "underground" ? (fullClear ? "You gathered it all and slipped away" : "You made it out with what you had") : "You found the way out"}
+      </h2>
       <div className="mt-6 grid grid-cols-2 gap-3">
         <div className="rounded-md bg-surface-2 px-4 py-3">
           <p className="text-xs text-faint">Time</p>
           <p className="mt-1 font-mono text-xl tabular-nums text-fg">{formatTime(time)}</p>
         </div>
         <div className="rounded-md bg-surface-2 px-4 py-3">
-          <p className="text-xs text-faint">Orbs</p>
+          <p className="text-xs text-faint">{mode === "underground" ? "Shards" : "Orbs"}</p>
           <p className="mt-1 font-mono text-xl tabular-nums text-fg">
             {collected}/{total}
           </p>
@@ -263,17 +266,20 @@ export function Hud({
   runtime,
   onHint,
   onFlashlight,
+  onLeave,
 }: {
   runtime: Runtime;
   onHint: () => void;
   onFlashlight: () => void;
+  onLeave: () => void;
 }) {
   const phase = useHud((s) => s.phase);
   const collected = useHud((s) => s.collected);
   const total = useHud((s) => s.total);
+  const shardsRequired = useHud((s) => s.shardsRequired);
   const peeks = useHud((s) => s.peeks);
   const scareTriggered = useHud((s) => s.scareTriggered);
-  const flashlightOn = useHud((s) => s.flashlightOn);
+  const flashlightMode = useHud((s) => s.flashlightMode);
   const battery = useHud((s) => s.battery);
   const touch = useHud((s) => s.touch);
   const [mapExpanded, setMapExpanded] = useState(false);
@@ -281,6 +287,8 @@ export function Hud({
   const timeRef = useRef<HTMLSpanElement>(null);
   const hintRef = useRef<HTMLSpanElement>(null);
   const collectRef = useRef<HTMLSpanElement>(null);
+  const bonusRef = useRef<HTMLSpanElement>(null);
+  const presenceRef = useRef<HTMLDivElement>(null);
   const voiceRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
@@ -288,12 +296,16 @@ export function Hud({
     runtime.timeEl = timeRef.current;
     runtime.hintEl = hintRef.current;
     runtime.collectEl = collectRef.current;
+    runtime.bonusEl = bonusRef.current;
+    runtime.presenceEl = presenceRef.current;
     runtime.voiceEl = voiceRef.current;
     return () => {
       runtime.mapEl = null;
       runtime.timeEl = null;
       runtime.hintEl = null;
       runtime.collectEl = null;
+      runtime.bonusEl = null;
+      runtime.presenceEl = null;
       runtime.voiceEl = null;
     };
   }, [runtime]);
@@ -303,6 +315,8 @@ export function Hud({
   }, [mapExpanded, runtime]);
 
   const playing = phase === "playing";
+  const canLeave = playing && runtime.mode === "underground" && collected >= shardsRequired;
+  const flashlightLabel = flashlightMode === 2 ? "full beam" : flashlightMode === 1 ? "low beam" : "light off";
 
   return (
     <>
@@ -331,8 +345,9 @@ export function Hud({
             <div className="flex items-center gap-1.5 rounded-md border border-border bg-surface/80 px-3 py-2">
               <Flower2 className="size-3.5 text-accent" strokeWidth={1.75} />
               <span ref={collectRef} className="font-mono text-sm tabular-nums text-fg">
-                {collected}/{total}
+                {collected}/{runtime.mode === "underground" ? shardsRequired : total}
               </span>
+              <span ref={bonusRef} className="font-mono text-[10px] tabular-nums text-[#e585ac]" />
             </div>
             <div className="flex items-center gap-1.5 rounded-md border border-border bg-surface/80 px-3 py-2">
               <Eye className="size-3.5 text-accent" strokeWidth={1.75} />
@@ -342,20 +357,38 @@ export function Hud({
             {runtime.mode === "underground" ? (
               <div className={`min-w-[126px] rounded-md border bg-slate-950/75 px-3 py-2 ${battery < 22 ? "border-red-300/50" : "border-amber-200/20"}`}>
                 <div className="flex items-center justify-between gap-2">
-                  <Flashlight className={`size-3.5 ${flashlightOn ? "text-amber-200" : "text-faint"}`} strokeWidth={1.75} />
-                  <span className="text-[10px] tracking-wide text-muted uppercase">{flashlightOn ? "light on" : "light off"}</span>
+                  {flashlightMode > 0 ? (
+                    <Flashlight className={`size-3.5 ${flashlightMode === 2 ? "text-amber-200" : "text-amber-200/55"}`} strokeWidth={1.75} />
+                  ) : (
+                    <FlashlightOff className="size-3.5 text-faint" strokeWidth={1.75} />
+                  )}
+                  <span className="text-[10px] tracking-wide text-muted uppercase">{flashlightLabel}</span>
                   <Battery className="size-3.5 text-faint" strokeWidth={1.75} />
                 </div>
                 <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10"><div className={`h-full ${battery < 22 ? "bg-red-400" : "bg-amber-200"}`} style={{ width: `${battery}%` }} /></div>
                 <p className="mt-1 text-right font-mono text-[10px] text-faint">{Math.ceil(battery)}%</p>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <span className="text-[9px] tracking-[0.16em] text-faint uppercase">presence</span>
+                </div>
+                <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
+                  <div ref={presenceRef} className="h-full" style={{ width: "0%", background: "hsl(130, 70%, 52%)" }} />
+                </div>
               </div>
+            ) : null}
+            {canLeave ? (
+              <button type="button" onClick={onLeave} className="pointer-events-auto flex items-center gap-1.5 rounded-md border border-emerald-300/40 bg-emerald-900/60 px-3 py-2 text-[11px] font-medium tracking-wide text-emerald-100 uppercase animate-pulse">
+                <LogOut className="size-3.5" strokeWidth={1.75} />
+                Leave (E)
+              </button>
             ) : null}
           </div>
         </div>
 
         {playing ? (
           <div className="absolute bottom-5 left-1/2 hidden -translate-x-1/2 sm:block">
-            <p className="rounded-md bg-bg/50 px-3 py-1.5 text-[11px] text-faint">H peek · L light · Esc release look</p>
+            <p className="rounded-md bg-bg/50 px-3 py-1.5 text-[11px] text-faint">
+              H peek · L {runtime.mode === "underground" ? "cycle light" : "light"} · Esc release look{runtime.mode === "underground" ? " · E leave (once you have enough shards)" : ""}
+            </p>
           </div>
         ) : null}
       </div>
@@ -368,8 +401,14 @@ export function Hud({
           <div className="pointer-events-auto mb-1 flex gap-2">
             {runtime.mode === "underground" ? (
               <button type="button" onClick={onFlashlight} className="flex h-12 min-w-12 items-center justify-center gap-2 rounded-md border border-amber-200/20 bg-surface/90 px-3 text-sm font-medium text-fg">
-                <Flashlight className="size-4" strokeWidth={1.75} />
-                <span className="hidden sm:inline">Light</span>
+                {flashlightMode > 0 ? <Flashlight className="size-4" strokeWidth={1.75} /> : <FlashlightOff className="size-4" strokeWidth={1.75} />}
+                <span className="hidden sm:inline capitalize">{flashlightMode === 2 ? "Full" : flashlightMode === 1 ? "Low" : "Off"}</span>
+              </button>
+            ) : null}
+            {runtime.mode === "underground" && touch && canLeave ? (
+              <button type="button" onClick={onLeave} className="flex h-12 min-w-12 items-center justify-center gap-2 rounded-md border border-emerald-300/40 bg-emerald-900/70 px-3 text-sm font-medium text-emerald-100">
+                <LogOut className="size-4" strokeWidth={1.75} />
+                <span className="hidden sm:inline">Leave</span>
               </button>
             ) : null}
             <button

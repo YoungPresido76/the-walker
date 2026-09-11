@@ -21,8 +21,12 @@ export type Runtime = {
   hintCd: number;
   peekCount: number;
   hintTarget: { x: number; z: number } | null;
-  flashlightOn: boolean;
+  flashlightMode: 0 | 1 | 2;
   battery: number;
+  presence: number;
+  presenceEl: HTMLElement | null;
+  bonusEl: HTMLElement | null;
+  stillChaseT: number;
   scareT: number;
   scareTriggered: boolean;
   stalkerState: "dormant" | "peeking" | "pursuing";
@@ -83,8 +87,12 @@ export function createRuntime(maze: Maze, input: GameInput): Runtime {
     hintCd: 0,
     peekCount: 0,
     hintTarget: null,
-    flashlightOn: true,
+    flashlightMode: 1,
     battery: 100,
+    presence: 0,
+    presenceEl: null,
+    bonusEl: null,
+    stillChaseT: 0,
     scareT: 0,
     scareTriggered: false,
     stalkerState: "dormant",
